@@ -1,7 +1,7 @@
 MAINDIR = src
 FRONTDIR = src/saltsecui
 
-.PHONY: node_modules
+.PHONY: node_modules test
 
 dev: node_modules
 	cd $(MAINDIR) && go run main.go &
@@ -13,3 +13,5 @@ node_modules: $(FRONTDIR)/package.json
 	cd $(FRONTDIR)
 	npm install
 
+test:
+	cd $(MAINDIR) && go test -v ./...
