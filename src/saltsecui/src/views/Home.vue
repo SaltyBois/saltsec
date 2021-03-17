@@ -1,5 +1,6 @@
 <template>
   <div id="home-main">
+    <!-- <main-nav></main-nav> -->
     <div id="header-container">
       <h1 id="header" class="primary--text">
         SaltSec

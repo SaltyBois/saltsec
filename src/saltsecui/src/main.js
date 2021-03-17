@@ -4,9 +4,12 @@ import router from './router'
 import axios from 'axios'
 import VueAxios from 'vue-axios'
 import vuetify from './plugins/vuetify';
+import MainNavigation from './components/MainNavigation'
 
 Vue.config.productionTip = false
 Vue.use(VueAxios, axios)
+
+Vue.component('main-nav', MainNavigation);
 
 new Vue({
   router,
