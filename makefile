@@ -21,4 +21,4 @@ tidy:
 
 # TODO(Jovan): Build npm
 build:
-	go build -v
+	cd $(MAINDIR) && go build -v
