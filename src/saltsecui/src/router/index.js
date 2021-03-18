@@ -3,6 +3,7 @@ import VueRouter from 'vue-router'
 import Home from '../views/Home.vue'
 import Login from "../views/Login.vue";
 import CertificateForm from "../views/CertificateForm.vue";
+import AdminPage from "../views/AdminPage.vue";
 
 Vue.use(VueRouter)
 
@@ -21,6 +22,11 @@ const routes = [
     path: '/getCertificate',
     name: 'CertificateFrom',
     component: CertificateForm
+  },
+  {
+    path: '/admin',
+    name: 'AdminPage',
+    component: AdminPage
   },
 //  {
 //    path: '/about',
