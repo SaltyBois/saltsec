@@ -18,3 +18,7 @@ test:
 
 tidy:
 	cd $(MAINDIR) && go fmt
+
+# TODO(Jovan): Build npm
+build:
+	cd $(MAINDIR) && go build -v
