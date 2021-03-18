@@ -23,6 +23,9 @@ export default {
   methods: {
     ping: function() {
       this.axios.get("http://localhost:8081/ping")
+        .then(resp => {
+          console.log(resp.data);
+        })
         .finally(response => {
           console.log(response);
         })
@@ -33,6 +36,7 @@ export default {
     },
     routeToGetCertificate()
     {
+      this.ping();
       this.$router.push('/getCertificate');
     },
   },
