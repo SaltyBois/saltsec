@@ -4,9 +4,9 @@
 			<div id="nav" :class="{sticky:active}">
 				<div class="nav-container" :class="toggleNavClass()">
 					<!-- NOTE(Jovan): Logo -->
-					<div class="navbar-item logo">
-						saltsec
-					</div>
+<!--					<div class="navbar-item logo">-->
+<!--						saltsec-->
+<!--					</div>-->
 				</div>
 			</div>
 		</nav>
