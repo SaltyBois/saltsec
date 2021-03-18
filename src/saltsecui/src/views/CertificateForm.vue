@@ -40,12 +40,20 @@
               label="Phone number"
               v-model="phoneNumber"
               prepend-icon="mdi-address-circle"/>
-
+          <label>Certificate type:</label>
+          <v-radio-group>
+            <v-radio color="black" @click="ChooseCertificateType(0)" label="Self-issued(root) Certificate"/>
+            <v-radio color="black" @click="ChooseCertificateType(1)" label="Intermediate Certificate Authority" />
+            <v-radio color="black" @click="ChooseCertificateType(2)" label="End-entity Certificate" />
+          </v-radio-group>
+          <div v-if="CertificateType !== 0 && CertificateType !== null">
+            <v-combobox label="Choose Certificate Authority" items="null"/>
+          </div>
         </v-form>
       </v-card-text>
       <v-card-actions class="justify-center mb-5">
-        <v-btn color="info mb-5" v-on:click="register">
-          Register
+        <v-btn color="red mb-5" dark v-on:click="register">
+          Apply
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -64,7 +72,8 @@ export default {
     firstName: '',
     lastName: '',
     address: '',
-    users: []
+    users: [],
+    CertificateType: null,
   }),
   computed: {
     user() {
@@ -92,7 +101,10 @@ export default {
             console.log(er.response.data);
           })
     },
-
+    ChooseCertificateType(number) {
+        this.CertificateType = number;
+        console.log("Cerificate Type: " + this.CertificateType);
+    },
     ValidateEmail()
     {
       if (/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/.test(this.username))
