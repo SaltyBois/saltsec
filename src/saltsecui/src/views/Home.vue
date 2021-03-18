@@ -1,6 +1,6 @@
 <template>
   <div id="home-main">
-    <!-- <main-nav></main-nav> -->
+     <main-nav></main-nav>
     <div id="header-container">
       <h1 id="header" class="primary--text">
         SaltSec
@@ -8,8 +8,11 @@
       <p id="header-text" class="primary--text">
         Adding salt to all your security needs
       </p>
-      <v-btn class="accent primary--text" @click="ping">Get your certificate</v-btn>
+      <v-btn class="accent primary--text" @click="routeToGetCertificate">Get your certificate</v-btn>
+      <br>
+      <v-btn dark class="accent primary--text" @click="routeToLogin">Login</v-btn>
     </div>
+    <v-img src="https://image.flaticon.com/icons/png/512/114/114928.png" id="logo-image" contain/>
   </div>
 </template>
 
@@ -24,6 +27,14 @@ export default {
           console.log(response);
         })
     },
+    routeToLogin()
+    {
+      this.$router.push('/login');
+    },
+    routeToGetCertificate()
+    {
+      this.$router.push('/getCertificate');
+    },
   },
 }
 </script>
@@ -33,7 +44,7 @@ export default {
     display: flex;
     flex-direction: row;
     align-content: center;
-    height: 100vh;
+    height: 100%;
     background: linear-gradient(45deg, #211010 70%,  #f5efe3 30%)
   }
 
@@ -52,6 +63,13 @@ export default {
 
   #header-text {
     font-size: 2rem;
+  }
+
+  #logo-image {
+    float: right;
+    margin-left: 5%;
+    margin-top: 1%;
+    height: 40%;
   }
 
 </style>
