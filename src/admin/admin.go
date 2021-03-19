@@ -55,6 +55,6 @@ func GetAll(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 }
 
 func (a Admin) ToString() string {
-	return fmt.Sprintf("Admin {ID: %s, Username: %s, Email: %s, Password: %s}",
+	return fmt.Sprintf("Admin {ID: %d, Username: %s, Email: %s, Password: %s}",
 		a.ID, a.Username, a.Email, a.Password)
 }
