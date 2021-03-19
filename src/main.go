@@ -2,15 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"log"
 	"net/http"
 	"os"
 	"saltsec/database"
 	"saltsec/globals"
 	"saltsec/seeder"
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
-	"gorm.io/gorm"
+	"saltsec/admin"
 )
 
 // TODO(Jovan): Move to common middleware?
@@ -32,18 +32,18 @@ func Ping() func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func initRoutes(router *mux.Router, db *gorm.DB) {
+func initRoutes(router *mux.Router, db *database.DBConn) {
 	router.HandleFunc("/ping", Ping()).Methods("GET")
 
 	// NOTE(Jovan): Admin
-	// router.HandleFunc("/api/admin", admin.GetAll(db))
+	router.HandleFunc("/api/admin", admin.GetAll(db))
 }
 
 func main() {
 	globals.LoadGlobalVars()
+	db := database.DBConn{}
 	if _, dbpresent := os.LookupEnv("DB_DEV"); dbpresent {
 		log.Println("DB_DEV set, using database...")
-		db := database.DBConn{}
 		conn, err := database.ConnectToDb()
 		if err != nil {
 			panic("Failed to connect to database")
@@ -59,6 +59,7 @@ func main() {
 
 	router := mux.NewRouter()
 	router.Use(jsonMiddleware)
+	initRoutes(router, &db)
 
 	handler := cors.Default().Handler(router)
 	log.Printf("Starting main backend on port %s...\n", globals.PORT)

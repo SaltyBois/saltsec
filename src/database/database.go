@@ -2,9 +2,9 @@ package database
 
 import (
 	"fmt"
-	"saltsec/globals"
-	"gorm.io/gorm"
 	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"saltsec/globals"
 )
 
 // NOTE(Jovan): Required for new method definition of non-local
@@ -19,5 +19,3 @@ func ConnectToDb() (*gorm.DB, error) {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	return db, err
 }
-
-

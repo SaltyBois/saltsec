@@ -1,5 +1,6 @@
 package globals
-import(
+
+import (
 	"os"
 	"strconv"
 )
