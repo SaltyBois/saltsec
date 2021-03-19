@@ -17,7 +17,7 @@ test:
 	cd $(MAINDIR) && go test -v ./...
 
 tidy:
-	cd $(MAINDIR) && go fmt
+	cd $(MAINDIR) && go fmt ./...
 
 # TODO(Jovan): Build npm
 build:
