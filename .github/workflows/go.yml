@@ -6,7 +6,21 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: saltsec
+          POSTGRES_PASSWORD: saltsec
+          POSTGRES_DB: saltsecdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
+    - name: Check out repo code
     - uses: actions/checkout@v2
 
     - name: Set up Go
@@ -16,6 +30,14 @@ jobs:
 
     - name: Build
       run: make build
+      env: 
+        DB_DEV: true
+        HOST_DB_SALT: postgres
+        PORT_DB_SALT: 5432
+        USER_DB_SALT: saltsec
+        PASSWORD_DB_SALT: saltsec
+        NAME_DB_SALT: saltsecdb
+
 
     - name: Test
       run: make test
