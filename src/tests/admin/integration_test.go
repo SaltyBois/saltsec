@@ -55,7 +55,9 @@ func TestAdminGet(t *testing.T) {
 	t.Log("Running Admin integration test...")
 	globals.LoadGlobalVars()
 	a := Application{}
-	a.db.ConnectToDb()
+	if err := a.db.ConnectToDb(); err != nil {
+		t.Fatalf("Failed to connect to database, returned error: %s", err)
+	}
 	a.startServer()
 	tx, err := seedAdmins(&a.db)
 	if err != nil {
