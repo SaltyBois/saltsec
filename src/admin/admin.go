@@ -1,11 +1,11 @@
 package admin
 
 import (
-	"fmt"
-	"saltsec/database"
-	"log"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+	"saltsec/database"
 )
 
 type Admin struct {

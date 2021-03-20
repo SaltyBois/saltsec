@@ -8,8 +8,8 @@ import (
 	"os"
 	"saltsec/database"
 	"saltsec/globals"
-	"saltsec/seeder"
 	"saltsec/router"
+	"saltsec/seeder"
 )
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
 	r := router.Router{}
 	r.R = mux.NewRouter()
 	r.InitRouter(&db)
-	
+
 	handler := cors.Default().Handler(r.R)
 	log.Printf("Starting main backend on port %s...\n", globals.PORT)
 	log.Fatal(http.ListenAndServe(globals.PORT, handler))

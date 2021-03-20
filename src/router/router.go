@@ -19,7 +19,6 @@ func jsonMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-
 func (r *Router) initRoutes(db *database.DBConn) {
 	// NOTE(Jovan): Admin
 	r.R.HandleFunc("/api/admin", admin.GetAll(db))
