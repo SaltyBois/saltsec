@@ -40,3 +40,10 @@ jobs:
 
     - name: Test
       run: make test
+      env: 
+        DB_DEV: true
+        HOST_DB_SALT: postgres
+        PORT_DB_SALT: 5432
+        USER_DB_SALT: saltsec
+        PASSWORD_DB_SALT: saltsec
+        NAME_DB_SALT: saltsecdb
