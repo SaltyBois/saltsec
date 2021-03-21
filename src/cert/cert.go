@@ -1,15 +1,11 @@
 package cert
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-    "crypto/x509/pkix"
-    "time"
-    "net"
-    "crypto/rand"
-    "encoding/pem"
+	"encoding/pem"
 	"log"
-	"math/big"
 )
 
 func genCert(template, parent *x509.Certificate, publicKey *rsa.PublicKey, privateKey *rsa.PrivateKey) (*x509.Certificate, []byte) {
@@ -28,29 +24,31 @@ func genCert(template, parent *x509.Certificate, publicKey *rsa.PublicKey, priva
 	return cert, certPEM
 }
 
-func GenCARoot() (*x509.Certificate, []byte, *rsa.PrivateKey) {
-	// TODO(Jovan): Read root from file?
-
-	rootTemplate := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			Country:      []string{"RS"},
-			Organization: []string{"SaltyBois Inc."},
-			CommonName:   "Root CA",
-		},
-		NotBefore:             time.Now().Add(-10 * time.Second),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
-		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-		IsCA:                  true,
-		MaxPathLen:            2,
-		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1")},
-	}
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+func GenCARootCert(rootTemplate *x509.Certificate) (*x509.Certificate, []byte, *rsa.PrivateKey) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		log.Fatalf("Failed to generate key, returned error: %s\n", err)
 	}
-	rootCert, rootPEM := genCert(&rootTemplate, &rootTemplate, &priv.PublicKey, priv)
-	return rootCert, rootPEM, priv
+	// NOTE(Jovan): Generate a self-signed cert
+	rootCert, rootPEM := genCert(rootTemplate, rootTemplate, &privateKey.PublicKey, privateKey)
+	return rootCert, rootPEM, privateKey
+}
+
+func GenCAIntermediateCert(template, parentCert *x509.Certificate, parentPrivateKey *rsa.PrivateKey) (*x509.Certificate, []byte, *rsa.PrivateKey) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		log.Fatalf("Failed to generate key, returned error: %s\n", err)
+	}
+	cert, certPEM := genCert(template, parentCert, &parentPrivateKey.PublicKey, parentPrivateKey)
+	return cert, certPEM, privateKey
+}
+
+// TODO(Jovan): Duplicate code, remove?
+func GenEndEntityCert(template, parentCert *x509.Certificate, parentPrivateKey *rsa.PrivateKey) (*x509.Certificate, []byte, *rsa.PrivateKey) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		log.Fatalf("Failed to generate key, returned error: %s\n", err)
+	}
+	cert, certPEM := genCert(template, parentCert, &parentPrivateKey.PublicKey, parentPrivateKey)
+	return cert, certPEM, privateKey
 }
