@@ -10,6 +10,7 @@ import (
 	"saltsec/globals"
 	"saltsec/router"
 	"saltsec/seeder"
+	"saltsec/cert"
 )
 
 func main() {
@@ -28,6 +29,10 @@ func main() {
 	} else {
 		log.Println("DB_DEV not set, not using database...")
 	}
+
+	// TODO(Jovan): Move to testing...
+	_, rootCertPEM, _ := cert.GenCARoot()
+	log.Println("rootCert\n", string(rootCertPEM))
 
 	r := router.Router{}
 	r.R = mux.NewRouter()
