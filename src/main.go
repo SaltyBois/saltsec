@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 	"log"
 	"net/http"
 	"os"
@@ -10,6 +8,9 @@ import (
 	"saltsec/globals"
 	"saltsec/router"
 	"saltsec/seeder"
+
+	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 )
 
 func main() {
@@ -28,6 +29,10 @@ func main() {
 	} else {
 		log.Println("DB_DEV not set, not using database...")
 	}
+
+	// TODO(Jovan): Move to testing...
+	// _, rootCertPEM, _ := cert.GenCARootCert(&rootTemplate)
+	// log.Println("rootCert\n", string(rootCertPEM))
 
 	r := router.Router{}
 	r.R = mux.NewRouter()
