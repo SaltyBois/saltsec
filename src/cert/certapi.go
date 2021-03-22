@@ -18,11 +18,18 @@ import (
 )
 
 type CertDTO struct {
-	Country, Organization, CommonName string
-	KeyUsages                         []string
-	ExtKeyUsages                      []string
-	IsCA                              bool
-	IPAddress                         string
+	Country      string   `json:"country"`
+	Organization string   `json:"organization"`
+	CommonName   string   `json:"commonName"`
+	KeyUsages    []string `json:"keyUsages"`
+	ExtKeyUsages []string `json:"extKeyUsages"`
+	IsCA         bool     `json:"isCA"`
+	IPAddress    string   `json:"ipAddress"`
+}
+
+type ParamsDTO struct {
+	KeyUsages    []string `json:"keyUsages"`
+	ExtKeyUsages []string `json:"extKeyUsages"`
 }
 
 func setExtKeyUsages(cert *x509.Certificate, usages []string) {
@@ -50,17 +57,58 @@ func parseCARootDTO(dto *CertDTO) *x509.Certificate {
 			Organization: []string{dto.Organization},
 			CommonName:   dto.CommonName,
 		},
-		NotBefore:             time.Now().Add(-10 * time.Second),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
-		BasicConstraintsValid: true,
+		NotBefore: time.Now().Add(-10 * time.Second),
+		NotAfter:  time.Now().AddDate(10, 0, 0),
+		// NOTE(Jovan): Used for MaxPathLen
+		BasicConstraintsValid: false,
 		IsCA:                  dto.IsCA,
-		MaxPathLen:            2,
-		IPAddresses:           []net.IP{net.ParseIP(dto.IPAddress)},
+		// NOTE(Jovan): -1 = unset -> No limit for how many certs can be
+		// "under" current CA
+		MaxPathLen:  -1,
+		IPAddresses: []net.IP{net.ParseIP(dto.IPAddress)},
 	}
 	return &rootTemplate
 }
 
-func GetCARootCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+func GetCertParams() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var dto ParamsDTO
+		keyUsages := []string{
+			"KeyUsageDigitalSignature",
+			"KeyUsageContentCommitment",
+			"KeyUsageKeyEncipherment",
+			"KeyUsageDataEncipherment",
+			"KeyUsageKeyAgreement",
+			"KeyUsageCertSign",
+			"KeyUsageCRLSign",
+			"KeyUsageEncipherOnly",
+			"KeyUsageDecipherOnly",
+		}
+
+		extKeyUsages := []string{
+			"ExtKeyUsageAny",
+			"ExtKeyUsageServerAuth",
+			"ExtKeyUsageClientAuth",
+			"ExtKeyUsageCodeSigning",
+			"ExtKeyUsageEmailProtection",
+			"ExtKeyUsageIPSECEndSystem",
+			"ExtKeyUsageIPSECTunnel",
+			"ExtKeyUsageIPSECUser",
+			"ExtKeyUsageTimeStamping",
+			"ExtKeyUsageOCSPSigning",
+			"ExtKeyUsageMicrosoftServerGatedCrypto",
+			"ExtKeyUsageNetscapeServerGatedCrypto",
+			"ExtKeyUsageMicrosoftCommercialCodeSigning",
+			"ExtKeyUsageMicrosoftKernelCodeSigning",
+		}
+
+		dto.KeyUsages = keyUsages
+		dto.ExtKeyUsages = extKeyUsages
+		json.NewEncoder(w).Encode(dto)
+	}
+}
+
+func GenerateCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		var dto CertDTO
@@ -75,8 +123,42 @@ func GetCARootCert(db *database.DBConn) func(http.ResponseWriter, *http.Request)
 		setExtKeyUsages(rootTemplate, dto.ExtKeyUsages)
 
 		_, pem, _ := GenCARootCert(rootTemplate)
-		log.Print(string(pem))
-		middleware.JSONResponse(w, "Success", http.StatusOK)
+		log.Printf("Generated cert: %s\n", string(pem))
 		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(pem))
+	}
+}
+
+func GetCertBySerial() func(http.ResponseWriter, *http.Request) {
+	// TODO(Jovan): Implement
+	return func(w http.ResponseWriter, r *http.Request) {
+
+	}
+}
+
+func GetRootCerts() func(http.ResponseWriter, *http.Request) {
+	// TODO(Jovan): Implement
+	return func(w http.ResponseWriter, r *http.Request) {
+
+	}
+}
+
+func GetCACerts() func(http.ResponseWriter, *http.Request) {
+	// TODO(Jovan): Implement
+	return func(w http.ResponseWriter, r *http.Request) {
+
+	}
+}
+
+func GetEndEntityCerts() func(http.ResponseWriter, *http.Request) {
+	// TODO(Jovan): Implement
+	return func(w http.ResponseWriter, r *http.Request) {
+
+	}
+}
+
+func GetAllCerts() func(http.ResponseWriter, *http.Request) {
+	// TODO(Jovan): Implement
+	return func(w http.ResponseWriter, r *http.Request) {
+
 	}
 }
