@@ -1,7 +1,14 @@
+  ifneq (,$(wildcard ../.env))
+	include ../.env
+	export
+endif
 MAINDIR = src
 FRONTDIR = src/saltsecui
 
 .PHONY: node_modules test tidy
+
+backend:
+	cd $(MAINDIR) && go run main.go
 
 dev: node_modules
 	cd $(MAINDIR) && go run main.go &
