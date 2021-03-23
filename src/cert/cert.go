@@ -31,28 +31,47 @@ func GenCARootCert(rootTemplate *x509.Certificate) (*x509.Certificate, []byte, *
 	return rootCert, rootPEM, privateKey
 }
 
-func GenCAIntermediateCert(template, parentCert *x509.Certificate, parentPrivateKey *rsa.PrivateKey) (*x509.Certificate, []byte, *rsa.PrivateKey) {
+func GenCAIntermediateCert(template *x509.Certificate, issuerSerialNumber string) (*x509.Certificate, []byte, *rsa.PrivateKey) {
+	issuerCert, err := FindCert(issuerSerialNumber)
+	if err != nil {
+		// TODO(Jovan): Handle error
+		return nil, nil, nil
+	}
+
+	issuerPrivateKey, err := FindCertKey(issuerSerialNumber)
+	if err != nil {
+		// TODO(Jovan): Handle error
+		return nil, nil, nil
+	}
+
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		log.Fatalf("Failed to generate key, returned error: %s\n", err)
 	}
-	cert, certPEM := genCert(template, parentCert, &parentPrivateKey.PublicKey, parentPrivateKey)
+	cert, certPEM := genCert(template, issuerCert, &issuerPrivateKey.PublicKey, issuerPrivateKey)
 	return cert, certPEM, privateKey
 }
 
 // TODO(Jovan): Duplicate code, remove?
-func GenEndEntityCert(template, parentCert *x509.Certificate, parentPrivateKey *rsa.PrivateKey) (*x509.Certificate, []byte, *rsa.PrivateKey) {
+func GenEndEntityCert(template *x509.Certificate, issuerSerialNumber string) (*x509.Certificate, []byte, *rsa.PrivateKey) {
+	issuerCert, err := FindCert(issuerSerialNumber)
+	if err != nil {
+		// TODO(Jovan): Handle error
+		return nil, nil, nil
+	}
+
+	issuerPrivateKey, err := FindCertKey(issuerSerialNumber)
+	if err != nil {
+		// TODO(Jovan): Handle error
+		return nil, nil, nil
+	}
+
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		log.Fatalf("Failed to generate key, returned error: %s\n", err)
 	}
-	cert, certPEM := genCert(template, parentCert, &parentPrivateKey.PublicKey, parentPrivateKey)
+	cert, certPEM := genCert(template, issuerCert, &issuerPrivateKey.PublicKey, issuerPrivateKey)
 	return cert, certPEM, privateKey
-}
-
-func FindCert(serialNumber string) (*x509.Certificate, error) {
-	// TODO(Jovan): Get by serial
-	return nil, errors.New("Not implemented")
 }
 
 func ValidateCertChain(cert *x509.Certificate) error {
@@ -68,10 +87,20 @@ func ValidateCertChain(cert *x509.Certificate) error {
 	return ValidateCertChain(issuerCert)
 }
 
+func FindCert(serialNumber string) (*x509.Certificate, error) {
+	// TODO(Jovan): Get by serial
+	return nil, errors.New("not implemented")
+}
+
+func FindCertKey(serialNumber string) (*rsa.PrivateKey, error) {
+	// TODO(Jovan): Get by serial
+	return nil, errors.New("not implemented")
+}
+
 func validateCert(cert *x509.Certificate) error {
 	today := time.Now()
 	if cert.NotAfter.Before(today) {
-		return errors.New("Certificate date is not valid")
+		return errors.New("nertificate date is not valid")
 	}
 	// TODO(Jovan) OCSP
 	return nil

@@ -80,17 +80,41 @@ func AddCARootCert(db *database.DBConn) func(http.ResponseWriter, *http.Request)
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		var dto CertDTO
-		decoder := json.NewDecoder(r.Body)
-		decoder.DisallowUnknownFields()
-		if err := decoder.Decode(&dto); err != nil {
+		err := dto.loadCertDTO(r)
+		if err != nil {
 			middleware.JSONResponse(w, "Bad Request"+err.Error(), http.StatusBadRequest)
 			return
 		}
-		rootTemplate := parseCertDTO(&dto)
+		if dto.Type != Root {
+			middleware.JSONResponse(w, "Bad Request cert type not of type 'Root'", http.StatusBadRequest)
+			return
+		}
+		rootTemplate := dto.parseCertDTO()
 		setKeyUsages(rootTemplate, dto.KeyUsages)
 		setExtKeyUsages(rootTemplate, dto.ExtKeyUsages)
 
 		_, pem, _ := GenCARootCert(rootTemplate)
+		log.Printf("Generated cert: %s\n", string(pem))
+		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(pem))
+	}
+}
+
+func AddCACert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var dto CertDTO
+		err := dto.loadCertDTO(r)
+		if err != nil {
+			middleware.JSONResponse(w, "Bad Request"+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if dto.Type != Intermediary {
+			middleware.JSONResponse(w, "Bad Request cert type not of type 'Intermediary'", http.StatusBadRequest)
+			return
+		}
+		caTemplate := dto.parseCertDTO()
+		setKeyUsages(caTemplate, dto.KeyUsages)
+		setExtKeyUsages(caTemplate, dto.ExtKeyUsages)
+		_, pem, _ := GenCAIntermediateCert(caTemplate, dto.IssuerSerial)
 		log.Printf("Generated cert: %s\n", string(pem))
 		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(pem))
 	}
@@ -150,7 +174,7 @@ func setKeyUsages(cert *x509.Certificate, usages []string) {
 	keyUsage.Set(cert)
 }
 
-func parseCertDTO(dto *CertDTO) *x509.Certificate {
+func (dto *CertDTO) parseCertDTO() *x509.Certificate {
 
 	rootTemplate := x509.Certificate{
 		SerialNumber: GetRandomSerial(),
@@ -170,4 +194,13 @@ func parseCertDTO(dto *CertDTO) *x509.Certificate {
 		IPAddresses: []net.IP{net.ParseIP(dto.IPAddress)},
 	}
 	return &rootTemplate
+}
+
+func (dto *CertDTO) loadCertDTO(r *http.Request) error {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(dto); err != nil {
+		return err
+	}
+	return nil
 }
