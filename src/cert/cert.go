@@ -5,8 +5,10 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"log"
 	"math/big"
+	"time"
 )
 
 func GetRandomSerial() *big.Int {
@@ -46,6 +48,33 @@ func GenEndEntityCert(template, parentCert *x509.Certificate, parentPrivateKey *
 	}
 	cert, certPEM := genCert(template, parentCert, &parentPrivateKey.PublicKey, parentPrivateKey)
 	return cert, certPEM, privateKey
+}
+
+func FindCert(serialNumber string) (*x509.Certificate, error) {
+	// TODO(Jovan): Get by serial
+	return nil, errors.New("Not implemented")
+}
+
+func ValidateCertChain(cert *x509.Certificate) error {
+	// NOTE(Jovan): While issuer.SerialNumber != cert.SerialNumber, traverse
+	if cert.SerialNumber.String() == cert.Issuer.SerialNumber {
+
+		return validateCert(cert)
+	}
+	issuerCert, err := FindCert(cert.Issuer.SerialNumber)
+	if err != nil {
+		return err
+	}
+	return ValidateCertChain(issuerCert)
+}
+
+func validateCert(cert *x509.Certificate) error {
+	today := time.Now()
+	if cert.NotAfter.Before(today) {
+		return errors.New("Certificate date is not valid")
+	}
+	// TODO(Jovan) OCSP
+	return nil
 }
 
 func genRandomBytes(length int) ([]byte, error) {
