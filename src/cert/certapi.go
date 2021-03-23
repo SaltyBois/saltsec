@@ -17,6 +17,48 @@ import (
 	"go.step.sm/crypto/x509util"
 )
 
+type CertType int
+
+const (
+	Root         CertType = 10
+	Intermediary CertType = 5
+	EndEntity    CertType = 1
+)
+
+func (ct CertType) String() string {
+	return toString[ct]
+}
+
+var toString = map[CertType]string{
+	Root:         "Root",
+	Intermediary: "Intermediary",
+	EndEntity:    "EndEntity",
+}
+
+var toID = map[string]CertType{
+	"Root":         Root,
+	"Intermediary": Intermediary,
+	"EndEntity":    EndEntity,
+}
+
+func (ct CertType) MarshalJSON() ([]byte, error) {
+	buffer := bytes.NewBufferString(`"`)
+	buffer.WriteString(toString[s])
+	buffer.WriteString(`"`)
+	return buffer.Bytes(), nil
+}
+
+func (ct *CertType) UnmarshalJSON(b []byte) error {
+	var jsonString string
+	err := json.Unmarshal(b, &jsonString)
+	if err != nil {
+		log.Fatalf("Failed to unmarshal CertType, returned error: %s\n", err)
+		return err
+	}
+	*ct = toID[jsonString]
+	return nil
+}
+
 type CertDTO struct {
 	Country      string   `json:"country"`
 	Organization string   `json:"organization"`
@@ -25,6 +67,7 @@ type CertDTO struct {
 	ExtKeyUsages []string `json:"extKeyUsages"`
 	IsCA         bool     `json:"isCA"`
 	IPAddress    string   `json:"ipAddress"`
+	Type         CertType `json:"type"`
 }
 
 type ParamsDTO struct {
@@ -58,7 +101,7 @@ func parseCARootDTO(dto *CertDTO) *x509.Certificate {
 			CommonName:   dto.CommonName,
 		},
 		NotBefore: time.Now().Add(-10 * time.Second),
-		NotAfter:  time.Now().AddDate(10, 0, 0),
+		NotAfter:  time.Now().AddDate(int(dto.Type), 0, 0),
 		// NOTE(Jovan): Used for MaxPathLen
 		BasicConstraintsValid: false,
 		IsCA:                  dto.IsCA,
