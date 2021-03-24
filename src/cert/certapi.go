@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/base64"
 	"encoding/gob"
 	"encoding/json"
 	"log"
@@ -14,50 +13,9 @@ import (
 	"saltsec/middleware"
 	"time"
 
+	"github.com/gorilla/mux"
 	"go.step.sm/crypto/x509util"
 )
-
-type CertType int
-
-const (
-	Root         CertType = 10
-	Intermediary CertType = 5
-	EndEntity    CertType = 1
-)
-
-func (ct CertType) String() string {
-	return toString[ct]
-}
-
-var toString = map[CertType]string{
-	Root:         "Root",
-	Intermediary: "Intermediary",
-	EndEntity:    "EndEntity",
-}
-
-var toID = map[string]CertType{
-	"Root":         Root,
-	"Intermediary": Intermediary,
-	"EndEntity":    EndEntity,
-}
-
-func (ct CertType) MarshalJSON() ([]byte, error) {
-	buffer := bytes.NewBufferString(`"`)
-	buffer.WriteString(toString[ct])
-	buffer.WriteString(`"`)
-	return buffer.Bytes(), nil
-}
-
-func (ct *CertType) UnmarshalJSON(b []byte) error {
-	var jsonString string
-	err := json.Unmarshal(b, &jsonString)
-	if err != nil {
-		log.Fatalf("Failed to unmarshal CertType, returned error: %s\n", err)
-		return err
-	}
-	*ct = toID[jsonString]
-	return nil
-}
 
 type CertDTO struct {
 	Type         CertType `json:"type"`
@@ -93,9 +51,13 @@ func AddCARootCert(db *database.DBConn) func(http.ResponseWriter, *http.Request)
 		setKeyUsages(rootTemplate, dto.KeyUsages)
 		setExtKeyUsages(rootTemplate, dto.ExtKeyUsages)
 
-		_, pem, _ := GenCARootCert(rootTemplate)
-		log.Printf("Generated cert: %s\n", string(pem))
-		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(pem))
+		cert, err := GenCARootCert(rootTemplate)
+		if err != nil {
+			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
+		json.NewEncoder(w).Encode(cert.Cert.SerialNumber.String())
 	}
 }
 
@@ -114,9 +76,34 @@ func AddCACert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 		caTemplate := dto.parseCertDTO()
 		setKeyUsages(caTemplate, dto.KeyUsages)
 		setExtKeyUsages(caTemplate, dto.ExtKeyUsages)
-		_, pem, _ := GenCAIntermediateCert(caTemplate, dto.IssuerSerial)
-		log.Printf("Generated cert: %s\n", string(pem))
-		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(pem))
+		cert, err := GenCAIntermediateCert(caTemplate, dto.IssuerSerial)
+		if err != nil {
+			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
+		json.NewEncoder(w).Encode(cert.Cert.SerialNumber.String())
+	}
+}
+
+func AddEECert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var dto CertDTO
+		err := dto.loadCertDTO(r)
+		if err != nil {
+			middleware.JSONResponse(w, "Bad Request cert type not of type 'EndEntity", http.StatusBadRequest)
+			return
+		}
+		eeTemplate := dto.parseCertDTO()
+		setKeyUsages(eeTemplate, dto.KeyUsages)
+		setExtKeyUsages(eeTemplate, dto.ExtKeyUsages)
+		cert, err := GenEndEntityCert(eeTemplate, dto.IssuerSerial)
+		if err != nil {
+			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
+		json.NewEncoder(w).Encode(cert.Cert.SerialNumber.String())
 	}
 }
 
@@ -158,6 +145,23 @@ func GetCertParams() func(http.ResponseWriter, *http.Request) {
 	}
 }
 
+func GetCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cert := Certificate{}
+		params := mux.Vars(r)
+		serialNumber := params["sn"]
+		cert.Load(serialNumber)
+		json.NewEncoder(w).Encode(cert)
+	}
+}
+
+func GetAllCerts(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		certs := LoadAll()
+		json.NewEncoder(w).Encode(certs)
+	}
+}
+
 func setExtKeyUsages(cert *x509.Certificate, usages []string) {
 	var extKeyUsage x509util.ExtKeyUsage
 	extKeyUsageBytes := &bytes.Buffer{}
@@ -175,7 +179,6 @@ func setKeyUsages(cert *x509.Certificate, usages []string) {
 }
 
 func (dto *CertDTO) parseCertDTO() *x509.Certificate {
-
 	rootTemplate := x509.Certificate{
 		SerialNumber: GetRandomSerial(),
 		Subject: pkix.Name{

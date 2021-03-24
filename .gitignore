@@ -16,3 +16,6 @@
 
 # Vue / js
 node_modules
+
+# Certs
+*.pem
