@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/base64"
 	"encoding/gob"
 	"encoding/json"
 	"log"
@@ -56,8 +55,8 @@ func AddCARootCert(db *database.DBConn) func(http.ResponseWriter, *http.Request)
 			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
 			return
 		}
-		log.Printf("Generated cert: %s\n", string(cert.PEM))
-		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(cert.PEM))
+		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
+		json.NewEncoder(w).Encode(cert.Cert.SerialNumber.String())
 	}
 }
 
@@ -81,8 +80,8 @@ func AddCACert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
 			return
 		}
-		log.Printf("Generated cert: %s\n", string(cert.PEM))
-		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(cert.PEM))
+		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
+		json.NewEncoder(w).Encode(cert.Cert.SerialNumber.String())
 	}
 }
 
@@ -102,8 +101,8 @@ func AddEECert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
 			return
 		}
-		log.Printf("Generated cert: %s\n", string(cert.PEM))
-		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(cert.PEM))
+		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
+		json.NewEncoder(w).Encode(cert.Cert.SerialNumber.String())
 	}
 }
 
