@@ -120,6 +120,23 @@ func AddCACert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
+func AddEECert(db *database.DBConn) func (http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var dto CertDTO
+		err := dto.loadCertDTO(r)
+		if err != nil {
+			middleware.JSONResponse(w, "Bad Request cert type not of type 'EndEntity", http.StatusBadRequest)
+			return
+		}
+		eeTemplate := dto.parseCertDTO()
+		setKeyUsages(eeTemplate, dto.KeyUsages)
+		setExtKeyUsages(eeTemplate, dto.ExtKeyUsages)
+		_, pem, _ := GenEndEntityCert(eeTemplate, dto.IssuerSerial)
+		log.Printf("Generated cert: %s\n", string(pem))
+		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(pem))
+	}
+}
+
 func GetCertParams() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var dto ParamsDTO
