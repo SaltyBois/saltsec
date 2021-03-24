@@ -13,19 +13,18 @@ import (
 
 type Certificate struct {
 	Cert       *x509.Certificate
-	PEM  	   []byte
+	PEM        []byte
 	PrivateKey *rsa.PrivateKey
 }
 
-func GetRandomSerial() (*big.Int, error) {
+func GetRandomSerial() *big.Int {
 	z := new(big.Int)
 	b, err := genRandomBytes(256)
 	if err != nil {
-		log.Printf("Failed to generate random serial, returned error: %s\n", err)
-		return nil, err
+		log.Fatalf("Failed to generate random serial, returned error: %s\n", err)
 	}
 	z.SetBytes(b)
-	return z, nil
+	return z
 }
 
 func GenCARootCert(rootTemplate *x509.Certificate) (*Certificate, error) {
@@ -40,7 +39,7 @@ func GenCARootCert(rootTemplate *x509.Certificate) (*Certificate, error) {
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
 	}
-	cert := Certificate{ Cert: rootCert, PEM: rootPEM, PrivateKey: privateKey}
+	cert := Certificate{Cert: rootCert, PEM: rootPEM, PrivateKey: privateKey}
 	return &cert, nil
 }
 
@@ -67,7 +66,7 @@ func GenCAIntermediateCert(template *x509.Certificate, issuerSerialNumber string
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
 	}
-	cert := Certificate {Cert: caCert, PEM: certPEM, PrivateKey: privateKey}
+	cert := Certificate{Cert: caCert, PEM: certPEM, PrivateKey: privateKey}
 	return &cert, nil
 }
 

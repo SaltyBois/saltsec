@@ -93,9 +93,13 @@ func AddCARootCert(db *database.DBConn) func(http.ResponseWriter, *http.Request)
 		setKeyUsages(rootTemplate, dto.KeyUsages)
 		setExtKeyUsages(rootTemplate, dto.ExtKeyUsages)
 
-		_, pem, _ := GenCARootCert(rootTemplate)
-		log.Printf("Generated cert: %s\n", string(pem))
-		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(pem))
+		cert, err := GenCARootCert(rootTemplate)
+		if err != nil {
+			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Generated cert: %s\n", string(cert.PEM))
+		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(cert.PEM))
 	}
 }
 
@@ -114,13 +118,17 @@ func AddCACert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 		caTemplate := dto.parseCertDTO()
 		setKeyUsages(caTemplate, dto.KeyUsages)
 		setExtKeyUsages(caTemplate, dto.ExtKeyUsages)
-		_, pem, _ := GenCAIntermediateCert(caTemplate, dto.IssuerSerial)
-		log.Printf("Generated cert: %s\n", string(pem))
-		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(pem))
+		cert, err := GenCAIntermediateCert(caTemplate, dto.IssuerSerial)
+		if err != nil {
+			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Generated cert: %s\n", string(cert.PEM))
+		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(cert.PEM))
 	}
 }
 
-func AddEECert(db *database.DBConn) func (http.ResponseWriter, *http.Request) {
+func AddEECert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var dto CertDTO
 		err := dto.loadCertDTO(r)
@@ -131,9 +139,13 @@ func AddEECert(db *database.DBConn) func (http.ResponseWriter, *http.Request) {
 		eeTemplate := dto.parseCertDTO()
 		setKeyUsages(eeTemplate, dto.KeyUsages)
 		setExtKeyUsages(eeTemplate, dto.ExtKeyUsages)
-		_, pem, _ := GenEndEntityCert(eeTemplate, dto.IssuerSerial)
-		log.Printf("Generated cert: %s\n", string(pem))
-		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(pem))
+		cert, err := GenEndEntityCert(eeTemplate, dto.IssuerSerial)
+		if err != nil {
+			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Generated cert: %s\n", string(cert.PEM))
+		json.NewEncoder(w).Encode(base64.StdEncoding.EncodeToString(cert.PEM))
 	}
 }
 
@@ -192,7 +204,6 @@ func setKeyUsages(cert *x509.Certificate, usages []string) {
 }
 
 func (dto *CertDTO) parseCertDTO() *x509.Certificate {
-
 	rootTemplate := x509.Certificate{
 		SerialNumber: GetRandomSerial(),
 		Subject: pkix.Name{
