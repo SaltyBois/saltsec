@@ -9,6 +9,8 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -188,6 +190,29 @@ func (cert *Certificate) Load(serialNumber string) error {
 	return errors.New("certificate/key file does not exist")
 }
 
+func LoadAll() []Certificate {
+	certs := []Certificate{}
+	dirs := []string{
+		ROOT_CERT_DIR,
+		INTER_CERT_DIR,
+		EE_CERT_DIR,
+	}
+	for _, dir := range dirs {
+		filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if info.IsDir() {
+				return nil
+			}
+			filename := strings.ReplaceAll(path, dir, "")
+			serialNumber := strings.ReplaceAll(filename, ".pem", "")
+			cert := Certificate{}
+			cert.Load(serialNumber)
+			certs = append(certs, cert)
+			return nil
+		})
+	}
+	return certs
+}
+
 func (cert *Certificate) loadCertAndKey(filename string) error {
 	certtmp, pemBlock, err := loadCertFile(filename)
 	if err != nil {
@@ -196,9 +221,10 @@ func (cert *Certificate) loadCertAndKey(filename string) error {
 	cert.Cert = certtmp
 	cert.Type = Root
 	cert.PEM = pem.EncodeToMemory(pemBlock)
-	key, err := loadKeyFile(filename)
+	// TODO(Jovan): handle error once key saving is added
+	key, _ := loadKeyFile(filename)
 	cert.PrivateKey = key
-	return err
+	return nil
 }
 
 func loadCertFile(filename string) (*x509.Certificate, *pem.Block, error) {

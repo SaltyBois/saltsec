@@ -18,6 +18,8 @@ func (r *Router) initRoutes(db *database.DBConn) {
 	r.R.HandleFunc("/api/admin", admin.GetAll(db)).Methods("GET")
 	r.R.HandleFunc("/api/cert/root", cert.AddCARootCert(db)).Methods("POST")
 	r.R.HandleFunc("/api/cert/params", cert.GetCertParams()).Methods("GET")
+	r.R.HandleFunc("/api/cert/", cert.GetAllCerts(db)).Methods("GET")
+	r.R.HandleFunc("/api/cert/{sn}", cert.GetCert(db)).Methods("GET")
 }
 
 func (r *Router) InitRouter(db *database.DBConn) {

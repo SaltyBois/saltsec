@@ -1,7 +1,11 @@
 package main
 
 import (
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"log"
+	"math/big"
+	"net"
 	"net/http"
 	"os"
 	"saltsec/cert"
@@ -9,6 +13,7 @@ import (
 	"saltsec/globals"
 	"saltsec/router"
 	"saltsec/seeder"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -30,7 +35,25 @@ func main() {
 	} else {
 		log.Println("DB_DEV not set, not using database...")
 	}
-
+	var rootTemplate = x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Country:      []string{"SE"},
+			Organization: []string{"Company Co."},
+			CommonName:   "Root CA",
+		},
+		NotBefore:             time.Now().Add(-10 * time.Second),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		MaxPathLen:            2,
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1")},
+	}
+	c, _ := cert.GenCARootCert(&rootTemplate)
+	c.Type = cert.Root
+	c.Save()
 	cert.Init()
 
 	r := router.Router{}

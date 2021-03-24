@@ -13,6 +13,7 @@ import (
 	"saltsec/middleware"
 	"time"
 
+	"github.com/gorilla/mux"
 	"go.step.sm/crypto/x509util"
 )
 
@@ -141,6 +142,23 @@ func GetCertParams() func(http.ResponseWriter, *http.Request) {
 		dto.KeyUsages = keyUsages
 		dto.ExtKeyUsages = extKeyUsages
 		json.NewEncoder(w).Encode(dto)
+	}
+}
+
+func GetCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cert := Certificate{}
+		params := mux.Vars(r)
+		serialNumber := params["sn"]
+		cert.Load(serialNumber)
+		json.NewEncoder(w).Encode(cert)
+	}
+}
+
+func GetAllCerts(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		certs := LoadAll()
+		json.NewEncoder(w).Encode(certs)
 	}
 }
 
