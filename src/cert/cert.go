@@ -1,7 +1,6 @@
 package cert
 
 import (
-	"bufio"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -14,9 +13,9 @@ import (
 )
 
 const (
-	EE_CERT_DIR = "../certs/ee/" 
+	EE_CERT_DIR    = "../certs/ee/"
 	INTER_CERT_DIR = "../certs/inter/"
-	ROOT_CERT_DIR = "../certs/root/"
+	ROOT_CERT_DIR  = "../certs/root/"
 )
 
 type Certificate struct {
@@ -142,10 +141,10 @@ func FindCertKey(serialNumber string) (*rsa.PrivateKey, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (cert *Certificate)Save() error {
-	filename := cert.Cert.SerialNumber.String()
+func (cert *Certificate) Save() error {
+	filename := cert.Cert.SerialNumber.String() + ".pem"
 	switch cert.Type {
-	case Root: 
+	case Root:
 		filename = ROOT_CERT_DIR + filename
 	case Intermediary:
 		filename = INTER_CERT_DIR + filename
@@ -172,44 +171,62 @@ func (cert *Certificate)Save() error {
 	return nil
 }
 
-func Load(serialNumber string, block **pem.Block) error {
+func Load(serialNumber string) (*x509.Certificate, error) {
 	filename := ROOT_CERT_DIR + serialNumber + ".pem"
-	pemBytes, err := loadFile(filename)
+	cert, err := loadCertFile(filename)
 	if err == nil {
-		*block, _ = pem.Decode([]byte(pemBytes))
-		return nil
+		return cert, nil
 	}
 	filename = INTER_CERT_DIR + serialNumber + ".pem"
-	pemBytes, err = loadFile(filename)
+	cert, err = loadCertFile(filename)
 	if err == nil {
-		*block, _ = pem.Decode([]byte(pemBytes))
-		return nil
+		return cert, nil
 	}
 	filename = EE_CERT_DIR + serialNumber + ".pem"
-	pemBytes, err = loadFile(filename)
+	cert, err = loadCertFile(filename)
 	if err == nil {
-		*block, _ = pem.Decode([]byte(pemBytes))
-		return nil
+		return cert, nil
 	}
-	return errors.New("PEM file does not exist")
+	return nil, errors.New("PEM file does not exist")
 }
 
-func loadFile(filename string) ([]byte, error) {
-	pemFile, err := os.Open(filename)
+func loadCertFile(filename string) (*x509.Certificate, error) {
+	certPEMBlock, err := loadPEMFile(filename)
 	if err != nil {
-		log.Printf("Failed opening PEM file, returned error: %s\n", err)
+		log.Printf("Failed to load PEM file, returned error: %s\n", err)
 		return nil, err
 	}
-	pemFileInfo, _ := pemFile.Stat()
-	var size int64 = pemFileInfo.Size()
-	pemBytes := make([]byte, size)
-	buffer := bufio.NewReader(pemFile)
-	_, err = buffer.Read(pemBytes)
+
+	cert, err := x509.ParseCertificate(certPEMBlock.Bytes)
 	if err != nil {
-		log.Printf("Failed reading PEM bytes, returned error: %s\n", err)
+		log.Printf("Failed parsing PEM bytes to cert, returned error: %s\n", err)
 		return nil, err
 	}
-	return pemBytes, pemFile.Close()
+	return cert, nil
+}
+
+func loadKeyFile(filename string) (*rsa.PrivateKey, error) {
+	keyPEMBytes, err := loadPEMFile(filename)
+	if err != nil {
+		log.Printf("Failed to load PEM file, returned error: %s\n", err)
+		return nil, err
+	}
+	key, err := x509.ParsePKCS1PrivateKey(keyPEMBytes.Bytes)
+	if err != nil {
+		log.Printf("Failed parsing PEM bytes to key, returned error: %s\n", err)
+		return nil, err
+	}
+	return key, nil
+}
+
+func loadPEMFile(filename string) (*pem.Block, error) {
+	fileBytes, err := os.ReadFile(filename)
+	if err != nil {
+		log.Printf("Failed loading cert file, returned error: %s\n", err)
+		return nil, err
+	}
+	pemBytes, _ := pem.Decode(fileBytes)
+	return pemBytes, nil
 }
 
 func validateCert(cert *x509.Certificate) error {

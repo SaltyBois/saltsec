@@ -31,9 +31,6 @@ func main() {
 		log.Println("DB_DEV not set, not using database...")
 	}
 
-	// TODO(Jovan): Move to testing...
-	// _, rootCertPEM, _ := cert.GenCARootCert(&rootTemplate)
-	// log.Println("rootCert\n", string(rootCertPEM))
 	cert.Init()
 
 	r := router.Router{}
