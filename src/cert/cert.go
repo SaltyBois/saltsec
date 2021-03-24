@@ -1,6 +1,7 @@
 package cert
 
 import (
+	"bufio"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -8,13 +9,36 @@ import (
 	"errors"
 	"log"
 	"math/big"
+	"os"
 	"time"
+)
+
+const (
+	EE_CERT_DIR = "../certs/ee/" 
+	INTER_CERT_DIR = "../certs/inter/"
+	ROOT_CERT_DIR = "../certs/root/"
 )
 
 type Certificate struct {
 	Cert       *x509.Certificate
 	PEM        []byte
 	PrivateKey *rsa.PrivateKey
+	Type       CertType
+}
+
+func Init() {
+	if _, err := os.Stat("../certs/"); os.IsNotExist(err) {
+		os.Mkdir("../certs/", 0755)
+	}
+	if _, err := os.Stat(EE_CERT_DIR); os.IsNotExist(err) {
+		os.Mkdir(EE_CERT_DIR, 0755)
+	}
+	if _, err := os.Stat(INTER_CERT_DIR); os.IsNotExist(err) {
+		os.Mkdir(INTER_CERT_DIR, 0755)
+	}
+	if _, err := os.Stat(ROOT_CERT_DIR); os.IsNotExist(err) {
+		os.Mkdir(ROOT_CERT_DIR, 0755)
+	}
 }
 
 func GetRandomSerial() *big.Int {
@@ -70,7 +94,6 @@ func GenCAIntermediateCert(template *x509.Certificate, issuerSerialNumber string
 	return &cert, nil
 }
 
-// TODO(Jovan): Duplicate code, remove?
 func GenEndEntityCert(template *x509.Certificate, issuerSerialNumber string) (*Certificate, error) {
 	issuerCert, err := FindCert(issuerSerialNumber)
 	if err != nil {
@@ -117,6 +140,76 @@ func FindCert(serialNumber string) (*x509.Certificate, error) {
 func FindCertKey(serialNumber string) (*rsa.PrivateKey, error) {
 	// TODO(Jovan): Get by serial
 	return nil, errors.New("not implemented")
+}
+
+func (cert *Certificate)Save() error {
+	filename := cert.Cert.SerialNumber.String()
+	switch cert.Type {
+	case Root: 
+		filename = ROOT_CERT_DIR + filename
+	case Intermediary:
+		filename = INTER_CERT_DIR + filename
+	case EndEntity:
+		filename = EE_CERT_DIR + filename
+	default:
+		return errors.New("invalid certificate type")
+	}
+	pemFile, err := os.Create(filename)
+	if err != nil {
+		log.Printf("Failed creating PEM file, returned error: %s\n", err)
+		return err
+	}
+	pemBlock, _ := pem.Decode(cert.PEM)
+	if pemBlock == nil {
+		log.Println("Failed decoding PEM block")
+		return errors.New("failed decoding PEM block")
+	}
+	err = pem.Encode(pemFile, pemBlock)
+	if err != nil {
+		log.Printf("Failed writing to PEM file, returned error: %s\n", err)
+		return err
+	}
+	return nil
+}
+
+func Load(serialNumber string, block **pem.Block) error {
+	filename := ROOT_CERT_DIR + serialNumber + ".pem"
+	pemBytes, err := loadFile(filename)
+	if err == nil {
+		*block, _ = pem.Decode([]byte(pemBytes))
+		return nil
+	}
+	filename = INTER_CERT_DIR + serialNumber + ".pem"
+	pemBytes, err = loadFile(filename)
+	if err == nil {
+		*block, _ = pem.Decode([]byte(pemBytes))
+		return nil
+	}
+	filename = EE_CERT_DIR + serialNumber + ".pem"
+	pemBytes, err = loadFile(filename)
+	if err == nil {
+		*block, _ = pem.Decode([]byte(pemBytes))
+		return nil
+	}
+	return errors.New("PEM file does not exist")
+}
+
+func loadFile(filename string) ([]byte, error) {
+	pemFile, err := os.Open(filename)
+	if err != nil {
+		log.Printf("Failed opening PEM file, returned error: %s\n", err)
+		return nil, err
+	}
+	pemFileInfo, _ := pemFile.Stat()
+	var size int64 = pemFileInfo.Size()
+	pemBytes := make([]byte, size)
+	buffer := bufio.NewReader(pemFile)
+	_, err = buffer.Read(pemBytes)
+	if err != nil {
+		log.Printf("Failed reading PEM bytes, returned error: %s\n", err)
+		return nil, err
+	}
+	return pemBytes, pemFile.Close()
 }
 
 func validateCert(cert *x509.Certificate) error {

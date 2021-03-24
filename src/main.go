@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"saltsec/cert"
 	"saltsec/database"
 	"saltsec/globals"
 	"saltsec/router"
@@ -33,6 +34,7 @@ func main() {
 	// TODO(Jovan): Move to testing...
 	// _, rootCertPEM, _ := cert.GenCARootCert(&rootTemplate)
 	// log.Println("rootCert\n", string(rootCertPEM))
+	cert.Init()
 
 	r := router.Router{}
 	r.R = mux.NewRouter()
