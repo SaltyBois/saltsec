@@ -63,7 +63,6 @@ export default {
       { text: 'Not Before', value: 'NotBefore' },
       { text: 'Not After', value: 'NotAfter' },
       { text: 'Issued By', value: 'Issuer' },
-      { text: 'Is Valid', value: 'IsValid' },
       { text: 'Disable Certificate', value: 'DisableCertificate' },
       { text: 'Download Certificate', value: 'Download' },
     ],
