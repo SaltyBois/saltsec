@@ -12,12 +12,17 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"saltsec/keystore"
 )
 
 const (
 	EE_CERT_DIR    = "../certs/ee/"
 	INTER_CERT_DIR = "../certs/inter/"
 	ROOT_CERT_DIR  = "../certs/root/"
+	EE_KEYS_DIR = "../keys/ee/"
+	INTER_KEY_DIR = "../keys/inter/"
+	ROOT_KEY_DIR = "../keys/rooot/"
 )
 
 type Certificate struct {
@@ -31,6 +36,9 @@ func Init() {
 	if _, err := os.Stat("../certs/"); os.IsNotExist(err) {
 		os.Mkdir("../certs/", 0755)
 	}
+	if _, err := os.Stat("../keys/"); os.IsNotExist(err) {
+		os.Mkdir("../keys/", 0755)
+	}
 	if _, err := os.Stat(EE_CERT_DIR); os.IsNotExist(err) {
 		os.Mkdir(EE_CERT_DIR, 0755)
 	}
@@ -39,6 +47,15 @@ func Init() {
 	}
 	if _, err := os.Stat(ROOT_CERT_DIR); os.IsNotExist(err) {
 		os.Mkdir(ROOT_CERT_DIR, 0755)
+	}
+	if _, err := os.Stat(EE_KEYS_DIR); os.IsNotExist(err) {
+		os.Mkdir(EE_KEYS_DIR, 0755)
+	}
+	if _, err := os.Stat(INTER_KEY_DIR); os.IsNotExist(err) {
+		os.Mkdir(INTER_KEY_DIR, 0755)
+	}
+	if _, err := os.Stat(ROOT_KEY_DIR); os.IsNotExist(err) {
+		os.Mkdir(ROOT_KEY_DIR, 0755)
 	}
 }
 
@@ -171,8 +188,12 @@ func (cert *Certificate) Save() error {
 		log.Printf("Failed writing to PEM file, returned error: %s\n", err)
 		return err
 	}
+
+	keystore.WritePFX(cert.Cert, cert.PrivateKey)
+
 	return nil
 }
+
 
 func (cert *Certificate) Load(serialNumber string) error {
 	filename := ROOT_CERT_DIR + serialNumber + ".pem"
