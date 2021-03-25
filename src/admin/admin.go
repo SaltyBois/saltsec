@@ -54,6 +54,16 @@ func GetAll(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
+func GetFirstAdmin(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		admin := Admin{}
+		if err := GetAdmin(1, &admin, db); err != nil {
+			log.Print(err)
+		}
+		json.NewEncoder(w).Encode(admin)
+	}
+}
+
 func (a Admin) ToString() string {
 	return fmt.Sprintf("Admin {ID: %d, Username: %s, Email: %s, Password: %s}",
 		a.ID, a.Username, a.Email, a.Password)

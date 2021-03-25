@@ -32,12 +32,5 @@ func allSeeds() []Seed {
 				return admin.AddAdmin(&a, db)
 			},
 		},
-		Seed{
-			Name: "CreateADmin2",
-			Run: func(db *database.DBConn) error {
-				a := admin.Admin{ID: 2, Username: "admin2", Email: "admin2@email.com", Password: "admin2"}
-				return admin.AddAdmin(&a, db)
-			},
-		},
 	}
 }
