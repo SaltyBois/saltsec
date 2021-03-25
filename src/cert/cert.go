@@ -14,17 +14,20 @@ import (
 	"time"
 )
 
-const (
-	EE_CERT_DIR    = "../certs/ee/"
-	INTER_CERT_DIR = "../certs/inter/"
-	ROOT_CERT_DIR  = "../certs/root/"
+var (
+	EE_CERT_DIR    = filepath.FromSlash("../certs/ee/")
+	INTER_CERT_DIR = filepath.FromSlash("../certs/inter/")
+	ROOT_CERT_DIR  = filepath.FromSlash("../certs/root/")
 )
 
 type Certificate struct {
-	Cert       *x509.Certificate
-	PEM        []byte
-	PrivateKey *rsa.PrivateKey
-	Type       CertType
+	Cert       *x509.Certificate `json: cert`
+	PEM        []byte			 `json: pem`
+	PrivateKey *rsa.PrivateKey	 `json: privateKey`
+	Type       CertType			 `json: certType`
+	IsValid    bool			 	 `json: isValid`
+	Email	   []string			 `json: email`
+	IsService  bool				 `json: isService`
 }
 
 func Init() {
@@ -64,7 +67,7 @@ func GenCARootCert(rootTemplate *x509.Certificate) (*Certificate, error) {
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
 	}
-	cert := Certificate{Cert: rootCert, PEM: rootPEM, PrivateKey: privateKey}
+	cert := Certificate{Cert: rootCert, PEM: rootPEM, PrivateKey: privateKey, IsValid: true, IsService: true}
 	return &cert, nil
 }
 
@@ -91,7 +94,7 @@ func GenCAIntermediateCert(template *x509.Certificate, issuerSerialNumber string
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
 	}
-	cert := Certificate{Cert: caCert, PEM: certPEM, PrivateKey: privateKey}
+	cert := Certificate{Cert: caCert, PEM: certPEM, PrivateKey: privateKey, IsValid: true }
 	return &cert, nil
 }
 
@@ -117,7 +120,7 @@ func GenEndEntityCert(template *x509.Certificate, issuerSerialNumber string) (*C
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
 	}
-	cert := Certificate{Cert: eeCert, PEM: certPEM, PrivateKey: privateKey}
+	cert := Certificate{Cert: eeCert, PEM: certPEM, PrivateKey: privateKey, IsValid: true}
 	return &cert, err
 }
 
