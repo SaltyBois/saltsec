@@ -27,8 +27,7 @@ type Certificate struct {
 	PrivateKey *rsa.PrivateKey   `json: privateKey`
 	Type       CertType          `json: certType`
 	IsValid    bool              `json: isValid`
-	Email      []string          `json: email`
-	IsService  bool              `json: isService`
+	UserOrServiceID uint32		 `json: userOrServiceId`
 }
 
 type ArchivedCert struct {
@@ -73,7 +72,7 @@ func GenCARootCert(rootTemplate *x509.Certificate) (*Certificate, error) {
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
 	}
-	cert := Certificate{Cert: rootCert, PEM: rootPEM, PrivateKey: privateKey, IsValid: true, IsService: true}
+	cert := Certificate{Cert: rootCert, PEM: rootPEM, PrivateKey: privateKey, IsValid: true}
 	return &cert, nil
 }
 

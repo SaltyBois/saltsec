@@ -14,7 +14,6 @@ import (
 	"saltsec/router"
 	"saltsec/seeder"
 	"time"
-
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 )
@@ -50,7 +49,7 @@ func main() {
 		IsCA:                  true,
 		MaxPathLen:            2,
 		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1")},
-		EmailAddresses: 	   []string{"proba@email.com"},
+		EmailAddresses: 	   []string{"user1"},
 	}
 	c, _ := cert.GenCARootCert(&rootTemplate)
 	c.Type = cert.Root
