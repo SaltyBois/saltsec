@@ -11,7 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"saltsec/database"
-	"strings"
+	"saltsec/keystore"
 	"time"
 )
 
@@ -21,13 +21,12 @@ var (
 	ROOT_CERT_DIR  = filepath.FromSlash("../certs/root/")
 )
 
+const FILE_EXTENSION = ".pfx"
+
 type Certificate struct {
-	Cert       *x509.Certificate `json: cert`
-	PEM        []byte            `json: pem`
-	PrivateKey *rsa.PrivateKey   `json: privateKey`
-	Type       CertType          `json: certType`
-	IsValid    bool              `json: isValid`
-	UserOrServiceID uint32		 `json: userOrServiceId`
+	Cert       *x509.Certificate
+	PrivateKey *rsa.PrivateKey
+	Type       CertType
 }
 
 type ArchivedCert struct {
@@ -67,17 +66,17 @@ func GenCARootCert(rootTemplate *x509.Certificate) (*Certificate, error) {
 		return nil, err
 	}
 	// NOTE(Jovan): Generate a self-signed cert
-	rootCert, rootPEM, err := genCert(rootTemplate, rootTemplate, &privateKey.PublicKey, privateKey)
+	rootCert, _, err := genCert(rootTemplate, rootTemplate, &privateKey.PublicKey, privateKey)
 	if err != nil {
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
 	}
-	cert := Certificate{Cert: rootCert, PEM: rootPEM, PrivateKey: privateKey, IsValid: true}
+	cert := Certificate{Cert: rootCert, PrivateKey: privateKey}
 	return &cert, nil
 }
 
-func GenCAIntermediateCert(template *x509.Certificate, issuerSerialNumber string) (*Certificate, error) {
-	issuerCert, err := FindCert(issuerSerialNumber)
+func GenCAIntermediateCert(template *x509.Certificate, issuerSerialNumber, password string) (*Certificate, error) {
+	issuerCert, err := FindCert(issuerSerialNumber, password)
 	if err != nil {
 		log.Printf("Failed to find issuer cert, returned error: %s\n", err)
 		return nil, err
@@ -94,17 +93,17 @@ func GenCAIntermediateCert(template *x509.Certificate, issuerSerialNumber string
 		log.Printf("Failed to generate key, returned error: %s\n", err)
 		return nil, err
 	}
-	caCert, certPEM, err := genCert(template, issuerCert.Cert, &privateKey.PublicKey, issuerPrivateKey)
+	caCert, _, err := genCert(template, issuerCert.Cert, &privateKey.PublicKey, issuerPrivateKey)
 	if err != nil {
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
 	}
-	cert := Certificate{Cert: caCert, PEM: certPEM, PrivateKey: privateKey, IsValid: true}
+	cert := Certificate{Cert: caCert, PrivateKey: privateKey}
 	return &cert, nil
 }
 
-func GenEndEntityCert(template *x509.Certificate, issuerSerialNumber string) (*Certificate, error) {
-	issuerCert, err := FindCert(issuerSerialNumber)
+func GenEndEntityCert(template *x509.Certificate, issuerSerialNumber, password string) (*Certificate, error) {
+	issuerCert, err := FindCert(issuerSerialNumber, password)
 	if err != nil {
 		return nil, err
 	}
@@ -120,12 +119,12 @@ func GenEndEntityCert(template *x509.Certificate, issuerSerialNumber string) (*C
 		log.Printf("Failed to generate key, returned error: %s\n", err)
 		return nil, err
 	}
-	eeCert, certPEM, err := genCert(template, issuerCert.Cert, &privateKey.PublicKey, issuerPrivateKey)
+	eeCert, _, err := genCert(template, issuerCert.Cert, &privateKey.PublicKey, issuerPrivateKey)
 	if err != nil {
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
 	}
-	cert := Certificate{Cert: eeCert, PEM: certPEM, PrivateKey: privateKey, IsValid: true}
+	cert := Certificate{Cert: eeCert, PrivateKey: privateKey}
 	return &cert, err
 }
 
@@ -134,16 +133,18 @@ func ValidateCertChain(db *database.DBConn, cert *x509.Certificate) error {
 	if cert.SerialNumber.String() == cert.Issuer.SerialNumber {
 		return validateCert(db, cert)
 	}
-	issuerCert, err := FindCert(cert.Issuer.SerialNumber)
+	// TODO(Jovan): get password
+	password := "test123"
+	issuerCert, err := FindCert(cert.Issuer.SerialNumber, password)
 	if err != nil {
 		return err
 	}
 	return ValidateCertChain(db, issuerCert.Cert)
 }
 
-func FindCert(serialNumber string) (*Certificate, error) {
+func FindCert(serialNumber, password string) (*Certificate, error) {
 	cert := &Certificate{}
-	err := cert.Load(serialNumber)
+	err := cert.Load(serialNumber, password)
 	return cert, err
 }
 
@@ -152,7 +153,7 @@ func FindCertKey(serialNumber string) (*rsa.PrivateKey, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (cert *Certificate) Save() error {
+func (cert *Certificate) Save(password string) error {
 	filename := cert.Cert.SerialNumber.String() + ".pem"
 	switch cert.Type {
 	case Root:
@@ -164,35 +165,25 @@ func (cert *Certificate) Save() error {
 	default:
 		return errors.New("invalid certificate type")
 	}
-	pemFile, err := os.Create(filename)
+
+	err := keystore.WritePFX(cert.Cert, cert.PrivateKey, password, filename)
 	if err != nil {
-		log.Printf("Failed creating PEM file, returned error: %s\n", err)
-		return err
-	}
-	pemBlock, _ := pem.Decode(cert.PEM)
-	if pemBlock == nil {
-		log.Println("Failed decoding PEM block")
-		return errors.New("failed decoding PEM block")
-	}
-	err = pem.Encode(pemFile, pemBlock)
-	if err != nil {
-		log.Printf("Failed writing to PEM file, returned error: %s\n", err)
 		return err
 	}
 	return nil
 }
 
-func (cert *Certificate) Load(serialNumber string) error {
-	filename := ROOT_CERT_DIR + serialNumber + ".pem"
-	if err := cert.loadCertAndKey(filename); err == nil {
+func (cert *Certificate) Load(serialNumber, password string) error {
+	filename := ROOT_CERT_DIR + serialNumber + FILE_EXTENSION
+	if err := cert.loadCertAndKey(filename, password); err == nil {
 		return nil
 	}
-	filename = INTER_CERT_DIR + serialNumber + ".pem"
-	if err := cert.loadCertAndKey(filename); err == nil {
+	filename = INTER_CERT_DIR + serialNumber + FILE_EXTENSION
+	if err := cert.loadCertAndKey(filename, password); err == nil {
 		return nil
 	}
-	filename = EE_CERT_DIR + serialNumber + ".pem"
-	if err := cert.loadCertAndKey(filename); err == nil {
+	filename = EE_CERT_DIR + serialNumber + FILE_EXTENSION
+	if err := cert.loadCertAndKey(filename, password); err == nil {
 		return nil
 	}
 	return errors.New("certificate/key file does not exist")
@@ -200,24 +191,6 @@ func (cert *Certificate) Load(serialNumber string) error {
 
 func LoadAll() []Certificate {
 	certs := []Certificate{}
-	dirs := []string{
-		ROOT_CERT_DIR,
-		INTER_CERT_DIR,
-		EE_CERT_DIR,
-	}
-	for _, dir := range dirs {
-		filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-			if info.IsDir() {
-				return nil
-			}
-			filename := strings.ReplaceAll(path, dir, "")
-			serialNumber := strings.ReplaceAll(filename, ".pem", "")
-			cert := Certificate{}
-			cert.Load(serialNumber)
-			certs = append(certs, cert)
-			return nil
-		})
-	}
 	return certs
 }
 
@@ -262,17 +235,22 @@ func findCertFile(serialNumber string) (string, error) {
 	return "", errors.New("file does not exist")
 }
 
-func (cert *Certificate) loadCertAndKey(filename string) error {
-	certtmp, pemBlock, err := loadCertFile(filename)
+func (cert *Certificate) loadCertAndKey(filename, password string) error {
+	privateKey, c, err := keystore.ReadPFX(filename, password)
 	if err != nil {
 		return err
 	}
-	cert.Cert = certtmp
-	cert.Type = Root
-	cert.PEM = pem.EncodeToMemory(pemBlock)
-	// TODO(Jovan): handle error once key saving is added
-	key, _ := loadKeyFile(filename)
-	cert.PrivateKey = key
+
+	cert.Cert = c
+	cert.PrivateKey = privateKey
+	if !cert.Cert.IsCA {
+		cert.Type = EndEntity
+	} else if cert.Cert.SerialNumber.String() == cert.Cert.Issuer.SerialNumber {
+		cert.Type = Root
+	} else {
+		cert.Type = Intermediary
+	}
+
 	return nil
 }
 
