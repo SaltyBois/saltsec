@@ -46,11 +46,11 @@
         <v-form class="mx-auto ml-5 mr-5">
           <label>Certificate type:</label>
           <v-radio-group>
-            <v-radio color="black" @click="ChooseCertificateType(10)" label="Self-issued(root) Certificate"/>
-            <v-radio color="black" @click="ChooseCertificateType(5)" label="Intermediate Certificate" />
-            <v-radio color="black" @click="ChooseCertificateType(1)" label="End-entity Certificate" />
+            <v-radio color="black" @click="ChooseCertificateType('Root')" label="Self-issued(root) Certificate"/>
+            <v-radio color="black" @click="ChooseCertificateType('Intermediary')" label="Intermediate Certificate" />
+            <v-radio color="black" @click="ChooseCertificateType('EndEntity')" label="End-entity Certificate" />
           </v-radio-group>
-          <div v-if="CertificateType !== 10 && CertificateType !== null">
+          <div v-if="CertificateType !== 'Root'">
             <v-layout justify-start align-baseline v-if="selectedCertificate !== null">
               <h4>Selected CA</h4>
               <h3>: {{this.selectedCertificate.Cert.EmailAddresses[0]}}</h3>
@@ -111,7 +111,8 @@ export default {
               'isCA': this.isCA,
               'commonName': this.commonName,
               'issuerSerial': this.issuerSerial,
-              'emailAddress': this.username}
+              'emailAddress': this.username,
+              'password': this.password}
     }
   },
   methods: {
@@ -126,7 +127,7 @@ export default {
         this.password2='';
         return;
       }
-      if (this.CertificateType !== 10 && this.selectedCertificate === null) {
+      if (this.CertificateType !== 'Root' && !this.selectedCertificate) {
         alert('You must select Certificate Authority')
         return;
       }
@@ -138,26 +139,26 @@ export default {
       this.$http.post('http://localhost:8081/api/uos/add', this.user)
           // eslint-disable-next-line no-unused-vars
           .then(resp => {
-            if (this.CertificateType === 10) {
+            if (this.CertificateType === 'Root') {
               this.$http.post('http://localhost:8081/api/cert/root', this.certDTO)
                   // eslint-disable-next-line no-unused-vars
                   .then(resp2 => {
-                    this.$router.push('http://localhost:8082/')
+                    this.$router.push('/')
                   }).catch(err => {
                     console.log(err.response)
                   })
-            } else if (this.CertificateType === 5) {
+            } else if (this.CertificateType === 'Intermediary') {
               this.$http.post('http://localhost:8081/api/cert/intermediary', this.certDTO)
                   // eslint-disable-next-line no-unused-vars
                   .then(resp2 => {
-                    this.$router.push('http://localhost:8082/')
+                    this.$router.push('/')
                   })
             }
-            else if (this.CertificateType === 1) {
+            else if (this.CertificateType === 'EndEntity') {
               this.$http.post('http://localhost:8081/api/cert/end-entity', this.certDTO)
                   // eslint-disable-next-line no-unused-vars
                   .then(resp2 => {
-                    this.$router.push('http://localhost:8082/')
+                    this.$router.push('/')
                   })
             }
 

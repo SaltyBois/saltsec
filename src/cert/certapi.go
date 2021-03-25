@@ -7,7 +7,6 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"log"
-	"net"
 	"net/http"
 	"saltsec/database"
 	"saltsec/middleware"
@@ -19,11 +18,10 @@ import (
 )
 
 type CertDTO struct {
-	Type         CertType `json:"type,string"`
+	Type         CertType `json:"type"`
 	Country      string   `json:"country"`
 	Organization string   `json:"organization"`
 	CommonName   string   `json:"commonName"`
-	IPAddress    string   `json:"ipAddress"`
 	IssuerSerial string   `json:"issuerSerial"`
 	Password     string   `json:"password"`
 	IsCA         bool     `json:"isCA"`
@@ -61,6 +59,7 @@ func AddCARootCert(db *database.DBConn) func(http.ResponseWriter, *http.Request)
 		}
 		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
 		json.NewEncoder(w).Encode(cert.Cert.SerialNumber.String())
+		cert.Save(dto.EmailAddress, dto.Password)
 	}
 }
 
@@ -240,7 +239,7 @@ func (dto *CertDTO) parseCertDTO() *x509.Certificate {
 		// NOTE(Jovan): -1 = unset -> No limit for how many certs can be
 		// "under" current CA
 		MaxPathLen:  -1,
-		IPAddresses: []net.IP{net.ParseIP(dto.IPAddress)},
+		//IPAddresses: []net.IP{net.ParseIP(dto.IPAddress)},
 	}
 	return &rootTemplate
 }
