@@ -1,11 +1,17 @@
 <template>
   <div id="GetCertificate-page">
-    <v-card width="400" class="mx-auto mt-5" color="white">
+    <v-card width="800" class="mx-auto mt-5 mb-5" color="white">
       <v-card-title class="justify-center">
         <h1 class="display-1 ">Apply for certificate</h1>
       </v-card-title>
       <v-card-text>
         <v-form class="mx-auto ml-5 mr-5">
+          <v-radio-group>
+            <v-radio color="black" @click="ChooseUserOrService(0)" label="User"/>
+            <v-radio color="black" @click="ChooseUserOrService(1)" label="Service" />
+          </v-radio-group>
+        </v-form>
+        <v-form class="mx-auto ml-5 mr-5" v-if="isUser">
           <v-text-field
               label="Username/Email"
               v-model="username"
@@ -24,22 +30,28 @@
               prepend-icon="mdi-lock"
               :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
               @click:append="showPassword = !showPassword"/>
+        </v-form>
+        <v-form class="mx-auto ml-5 mr-5" v-else>
           <v-text-field
-              label="First name"
-              v-model="firstName"
-              prepend-icon="mdi-name-circle"/>
+              label="Service name"
+              v-model="username"
+              prepend-icon="mdi-account-circle"/>
           <v-text-field
-              label="Last name"
-              v-model="lastName"
-              prepend-icon="mdi-address-circle"/>
+              :type="showPassword ? 'text' : 'password'"
+              label="Password"
+              v-model="password2"
+              prepend-icon="mdi-lock"
+              :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+              @click:append="showPassword = !showPassword"/>
           <v-text-field
-              label="Address"
-              v-model="address"
-              prepend-icon="mdi-address-circle"/>
-          <v-text-field
-              label="Phone number"
-              v-model="phoneNumber"
-              prepend-icon="mdi-address-circle"/>
+              :type="showPassword ? 'text' : 'password'"
+              label="Confirm Password"
+              v-model="password"
+              prepend-icon="mdi-lock"
+              :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+              @click:append="showPassword = !showPassword"/>
+        </v-form>
+        <v-form class="mx-auto ml-5 mr-5">
           <label>Certificate type:</label>
           <v-radio-group>
             <v-radio color="black" @click="ChooseCertificateType(0)" label="Self-issued(root) Certificate"/>
@@ -47,7 +59,20 @@
             <v-radio color="black" @click="ChooseCertificateType(2)" label="End-entity Certificate" />
           </v-radio-group>
           <div v-if="CertificateType !== 0 && CertificateType !== null">
-            <v-combobox label="Choose Certificate Authority" items="null"/>
+            <v-layout justify-start align-baseline v-if="selectedCertificate !== null">
+              <h4>Selected CA</h4>
+              <h3>: {{this.selectedCertificate.Cert.EmailAddresses[0]}}</h3>
+              <h3>, {{this.selectedCertificate.Type}}</h3>
+              <h3>, {{new Date(this.selectedCertificate.Cert.NotAfter).toLocaleString('sr')}}</h3>
+              <h3>, {{this.selectedCertificate.Cert.Subject.SerialNumber}}</h3>
+            </v-layout>
+            <v-data-table label="Choose Certificate Authority" :items="CACertificates" :headers="headers" >
+              <template slot="item" slot-scope="data">
+                <td><h3>{{data.item.Type}}</h3></td>
+                <td>{{data.item.Cert.EmailAddresses[0]}}</td>
+                <td><v-btn class="accent" @click="selectCA(data.item)">Select</v-btn></td>
+              </template>
+            </v-data-table>
           </div>
         </v-form>
       </v-card-text>
@@ -68,12 +93,15 @@ export default {
     username: '',
     password: '',
     password2:'',
-    phoneNumber:'',
-    firstName: '',
-    lastName: '',
-    address: '',
-    users: [],
+    CACertificates: [],
     CertificateType: null,
+    selectedCertificate: null,
+    isUser: true,
+    headers: [
+      { text: 'Certificate Type', value: 'CertificateType', align: 'center',},
+      { text: 'Email/Name', value: 'EmailName', align: 'center', },
+      { text: 'Select CA', value: 'SelectCA', align: 'center', },
+    ]
   }),
   computed: {
     user() {
@@ -82,7 +110,8 @@ export default {
   },
   methods: {
     register() {
-      if(!this.ValidateEmail()){
+      if (this.username === '') {
+        alert('You must enter a service name or user email')
         return;
       }
       if (this.password!==this.password2){
@@ -91,7 +120,7 @@ export default {
         this.password2='';
         return;
       }
-      this.$http.post('http://localhost:8081/users/register', this.user)
+      this.$http.post('http://localhost:8081/api/', this.user)
           .then(resp => {
             console.log(resp.data);
             window.location.href = 'http://localhost:8080/login';
@@ -105,15 +134,25 @@ export default {
         this.CertificateType = number;
         console.log("Cerificate Type: " + this.CertificateType);
     },
-    ValidateEmail()
-    {
-      if (/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/.test(this.username))
-      {
-        return (true)
-      }
-      alert("You have entered an invalid email address!")
-      return (false)
-    }
+    ChooseUserOrService(number) {
+      this.isUser = number === 0;
+    },
+    getCACertificates() {
+      this.axios.get('http://localhost:8081/api/cert')
+      .then(resp => {
+        for(let i = 0; i < resp.data.length; ++i) {
+          if (resp.data[i].Cert.IsCA) this.CACertificates.push(resp.data[i])
+        }
+      })
+      console.log(this.CACertificates)
+    },
+    selectCA(certificate) {
+      this.selectedCertificate = certificate
+      console.log(this.selectedCertificate)
+    },
+  },
+  mounted() {
+    this.getCACertificates()
   }
 };
 
