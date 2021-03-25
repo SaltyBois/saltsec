@@ -15,10 +15,10 @@ import (
 	"time"
 )
 
-const (
-	EE_CERT_DIR    = "../certs/ee/"
-	INTER_CERT_DIR = "../certs/inter/"
-	ROOT_CERT_DIR  = "../certs/root/"
+var (
+	EE_CERT_DIR    = filepath.FromSlash("../certs/ee/")
+	INTER_CERT_DIR = filepath.FromSlash("../certs/inter/")
+	ROOT_CERT_DIR  = filepath.FromSlash("../certs/root/")
 )
 
 type Certificate struct {
@@ -240,6 +240,24 @@ func IsArchived(db *database.DBConn, serialNumber string) bool {
 
 func GetArchived(db *database.DBConn, certificates *[]ArchivedCert) error {
 	return db.DB.Find(certificates).Error
+}
+
+func findCertFile(serialNumber string) (string, error) {
+	paths := []string {
+		ROOT_CERT_DIR,
+		INTER_CERT_DIR,
+		EE_CERT_DIR,
+	}
+
+	for _, path := range paths {
+		filename := path + serialNumber + ".pem"
+		if _, err := os.Stat(filename); os.IsNotExist(err) {
+			log.Printf("Looking for %s", filename)
+			continue
+		}
+		return filename, nil
+	}
+	return "", errors.New("file does not exist")
 }
 
 func (cert *Certificate) loadCertAndKey(filename string) error {

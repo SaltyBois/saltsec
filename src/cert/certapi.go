@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"saltsec/database"
 	"saltsec/middleware"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -142,6 +143,22 @@ func GetCertParams() func(http.ResponseWriter, *http.Request) {
 		dto.KeyUsages = keyUsages
 		dto.ExtKeyUsages = extKeyUsages
 		json.NewEncoder(w).Encode(dto)
+	}
+}
+
+func DownloadCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		params := mux.Vars(r)
+		serialNumber := params["sn"]
+		filename, err := findCertFile(serialNumber)
+		if err != nil{
+			middleware.JSONResponse(w, "Bad Request Certificate does not exist", http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(filename))
+		w.Header().Set("Content-Type", "application/octet-stream")
+		http.ServeFile(w, r, filename)
 	}
 }
 
