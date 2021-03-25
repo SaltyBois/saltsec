@@ -3,6 +3,7 @@ package userOrService
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/mux"
 	"log"
 	"math/rand"
 	"net/http"
@@ -11,13 +12,13 @@ import (
 )
  // TODO: MILE
 type UserOrService struct {
-	ID       		 uint64		`json:"id"`
+	ID       		 uint32		`json:"id"`
 	Username 		 string		`json:"username"`
 	Password 		 string		`json:"password"`
 }
 
 type UserOrServiceDTO struct {
-	ID       		 uint64		`json:"id"`
+	ID       		 uint32		`json:"id"`
 	Username 		 string		`json:"username"`
 	Password 		 string		`json:"password"`
 	CertType 		 string `json:"certType"`
@@ -61,6 +62,24 @@ func GetAll(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
+func GetUosByUsername(username string, uos *UserOrService, db *database.DBConn) error {
+	return db.DB.Where("username = ?", username).First(uos).Error
+}
+
+func GetUos(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var dto UserOrServiceDTO
+		params := mux.Vars(r)
+		username := params["username"]
+		dto.Username = username
+		uos := UserOrService{}
+		if err := GetUosByUsername(dto.Username, &uos, db); err != nil {
+			log.Print(err)
+		}
+		json.NewEncoder(w).Encode(uos)
+	}
+}
+
 func AddUosAndCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var dto UserOrServiceDTO
@@ -71,7 +90,7 @@ func AddUosAndCert(db *database.DBConn) func(http.ResponseWriter, *http.Request)
 			middleware.JSONResponse(w, "Bad Lemara Request: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		uos := UserOrService{ID: rand.Uint64(), Username: dto.Username, Password: dto.Password}
+		uos := UserOrService{ID: rand.Uint32(), Username: dto.Username, Password: dto.Password}
 
 		_ = AddUserOrServiceToDB(&uos, db)
 	}
