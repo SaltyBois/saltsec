@@ -162,6 +162,30 @@ func GetAllCerts(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
+func CheckIfArchived(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		params := mux.Vars(r)
+		serialNumber := params["sn"]
+		log.Printf("Looking for serial: %s", serialNumber)
+		if !IsArchived(db, serialNumber) {
+			middleware.JSONResponse(w, "Not Found Certificate is not archived", http.StatusNotFound)
+			return
+		}
+		middleware.JSONResponse(w, "OK Certificate is archived", http.StatusOK)
+	}
+}
+
+func AddToArchive(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		params := mux.Vars(r)
+		if err := ArchiveCert(db, params["sn"]); err != nil {
+			middleware.JSONResponse(w, "Bad Request "+err.Error(), http.StatusNotFound)
+			return
+		}
+		middleware.JSONResponse(w, "OK Certificate archived", http.StatusOK)
+	}
+}
+
 func setExtKeyUsages(cert *x509.Certificate, usages []string) {
 	var extKeyUsage x509util.ExtKeyUsage
 	extKeyUsageBytes := &bytes.Buffer{}

@@ -3,6 +3,7 @@ package seeder
 import (
 	"log"
 	"saltsec/admin"
+	"saltsec/cert"
 	"saltsec/database"
 )
 
@@ -13,6 +14,7 @@ type Seed struct {
 
 func MigrateData(db *database.DBConn) {
 	db.DB.AutoMigrate(&admin.Admin{})
+	db.DB.AutoMigrate(&cert.ArchivedCert{})
 }
 
 func SeedData(db *database.DBConn) {
@@ -37,6 +39,12 @@ func allSeeds() []Seed {
 			Run: func(db *database.DBConn) error {
 				a := admin.Admin{ID: 2, Username: "admin2", Email: "admin2@email.com", Password: "admin2"}
 				return admin.AddAdmin(&a, db)
+			},
+		},
+		Seed{
+			Name: "Archive1",
+			Run: func(db *database.DBConn) error {
+				return cert.ArchiveCert(db, "1")
 			},
 		},
 	}
