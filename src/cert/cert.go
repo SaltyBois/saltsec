@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"saltsec/database"
 	"strings"
 	"time"
 )
@@ -22,12 +23,17 @@ var (
 
 type Certificate struct {
 	Cert       *x509.Certificate `json: cert`
-	PEM        []byte			 `json: pem`
-	PrivateKey *rsa.PrivateKey	 `json: privateKey`
-	Type       CertType			 `json: certType`
-	IsValid    bool			 	 `json: isValid`
-	Email	   []string			 `json: email`
-	IsService  bool				 `json: isService`
+	PEM        []byte            `json: pem`
+	PrivateKey *rsa.PrivateKey   `json: privateKey`
+	Type       CertType          `json: certType`
+	IsValid    bool              `json: isValid`
+	Email      []string          `json: email`
+	IsService  bool              `json: isService`
+}
+
+type ArchivedCert struct {
+	SerialNumber string    `gorm:"primaryKey" json:"serialNumber"`
+	ArchiveDate  time.Time `json:"archiveDate"`
 }
 
 func Init() {
@@ -94,7 +100,7 @@ func GenCAIntermediateCert(template *x509.Certificate, issuerSerialNumber string
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
 	}
-	cert := Certificate{Cert: caCert, PEM: certPEM, PrivateKey: privateKey, IsValid: true }
+	cert := Certificate{Cert: caCert, PEM: certPEM, PrivateKey: privateKey, IsValid: true}
 	return &cert, nil
 }
 
@@ -124,16 +130,16 @@ func GenEndEntityCert(template *x509.Certificate, issuerSerialNumber string) (*C
 	return &cert, err
 }
 
-func ValidateCertChain(cert *x509.Certificate) error {
+func ValidateCertChain(db *database.DBConn, cert *x509.Certificate) error {
 	// NOTE(Jovan): While issuer.SerialNumber != cert.SerialNumber, traverse
 	if cert.SerialNumber.String() == cert.Issuer.SerialNumber {
-		return validateCert(cert)
+		return validateCert(db, cert)
 	}
 	issuerCert, err := FindCert(cert.Issuer.SerialNumber)
 	if err != nil {
 		return err
 	}
-	return ValidateCertChain(issuerCert.Cert)
+	return ValidateCertChain(db, issuerCert.Cert)
 }
 
 func FindCert(serialNumber string) (*Certificate, error) {
@@ -216,6 +222,47 @@ func LoadAll() []Certificate {
 	return certs
 }
 
+func ArchiveCert(db *database.DBConn, serialNumber string) error {
+	archivedCert := ArchivedCert{SerialNumber: serialNumber, ArchiveDate: time.Now()}
+	return db.DB.Create(&archivedCert).Error
+}
+
+func IsArchived(db *database.DBConn, serialNumber string) bool {
+	certs := []ArchivedCert{}
+	if err := GetArchived(db, &certs); err != nil {
+		log.Printf("Failed getting archived certificates, returned error: %s\n", err)
+		return false
+	}
+	for _, c := range certs {
+		if serialNumber == c.SerialNumber {
+			return true
+		}
+	}
+	return false
+}
+
+func GetArchived(db *database.DBConn, certificates *[]ArchivedCert) error {
+	return db.DB.Find(certificates).Error
+}
+
+func findCertFile(serialNumber string) (string, error) {
+	paths := []string{
+		ROOT_CERT_DIR,
+		INTER_CERT_DIR,
+		EE_CERT_DIR,
+	}
+
+	for _, path := range paths {
+		filename := path + serialNumber + ".pem"
+		if _, err := os.Stat(filename); os.IsNotExist(err) {
+			log.Printf("Looking for %s", filename)
+			continue
+		}
+		return filename, nil
+	}
+	return "", errors.New("file does not exist")
+}
+
 func (cert *Certificate) loadCertAndKey(filename string) error {
 	certtmp, pemBlock, err := loadCertFile(filename)
 	if err != nil {
@@ -269,12 +316,14 @@ func loadPEMFile(filename string) (*pem.Block, error) {
 	return pemBytes, nil
 }
 
-func validateCert(cert *x509.Certificate) error {
+func validateCert(db *database.DBConn, cert *x509.Certificate) error {
 	today := time.Now()
 	if cert.NotAfter.Before(today) {
 		return errors.New("certificate date is not valid")
 	}
-	// TODO(Jovan) OCSP
+	if !IsArchived(db, cert.SerialNumber.String()) {
+		return errors.New("certificate no longer valid; tagged as archived")
+	}
 	return nil
 }
 
