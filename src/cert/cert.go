@@ -13,7 +13,9 @@ import (
 	"saltsec/database"
 	"strings"
 	"time"
+
 )
+
 
 var (
 	EE_CERT_DIR    = filepath.FromSlash("../certs/ee/")
@@ -179,6 +181,7 @@ func (cert *Certificate) Save() error {
 	}
 	return nil
 }
+
 
 func (cert *Certificate) Load(serialNumber string) error {
 	filename := ROOT_CERT_DIR + serialNumber + ".pem"
