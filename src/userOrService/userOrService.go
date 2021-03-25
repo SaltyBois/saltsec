@@ -9,19 +9,20 @@ import (
 	"saltsec/database"
 	"saltsec/middleware"
 )
- // TODO: MILE
+
+// TODO: MILE
 type UserOrService struct {
-	ID       		 uint64		`json:"id"`
-	Username 		 string		`json:"username"`
-	Password 		 string		`json:"password"`
+	ID       uint64 `json:"id"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 type UserOrServiceDTO struct {
-	ID       		 uint64		`json:"id"`
-	Username 		 string		`json:"username"`
-	Password 		 string		`json:"password"`
-	CertType 		 string `json:"certType"`
-	ParentCommonName string	`json:"parentCommonName"`
+	ID               uint64 `json:"id"`
+	Username         string `json:"username"`
+	Password         string `json:"password"`
+	CertType         string `json:"certType"`
+	ParentCommonName string `json:"parentCommonName"`
 }
 
 func AddUserOrServiceToDB(uos *UserOrService, db *database.DBConn) error {
@@ -90,4 +91,3 @@ func (a UserOrService) ToString() string {
 	return fmt.Sprintf("Admin {ID: %d, Username: %s, Password: %s}",
 		a.ID, a.Username, a.Password)
 }
-

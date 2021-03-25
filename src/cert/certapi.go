@@ -178,7 +178,8 @@ func GetCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 
 func GetAllCerts(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		certs := LoadAll()
+		certs := []Certificate{}
+		LoadAll(db, &certs)
 		json.NewEncoder(w).Encode(certs)
 	}
 }

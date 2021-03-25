@@ -12,13 +12,16 @@ import (
 	"path/filepath"
 	"saltsec/database"
 	"saltsec/keystore"
+	"saltsec/userOrService"
+	"strings"
 	"time"
 )
 
 var (
-	EE_CERT_DIR    = filepath.FromSlash("../certs/ee/")
-	INTER_CERT_DIR = filepath.FromSlash("../certs/inter/")
-	ROOT_CERT_DIR  = filepath.FromSlash("../certs/root/")
+	ROOT_DIR       = filepath.FromSlash("../certs/")
+	EE_CERT_DIR    = filepath.FromSlash(ROOT_DIR + "ee/")
+	INTER_CERT_DIR = filepath.FromSlash(ROOT_DIR + "inter/")
+	ROOT_CERT_DIR  = filepath.FromSlash(ROOT_DIR + "root/")
 )
 
 const FILE_EXTENSION = ".pfx"
@@ -153,8 +156,10 @@ func FindCertKey(serialNumber string) (*rsa.PrivateKey, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (cert *Certificate) Save(password string) error {
-	filename := cert.Cert.SerialNumber.String() + ".pem"
+func (cert *Certificate) Save(username, password string) error {
+	// TODO(jovan): DN as filename
+	filename := username + cert.Cert.Subject.CommonName
+	//cert.Cert.SerialNumber.String() + ".pem"
 	switch cert.Type {
 	case Root:
 		filename = ROOT_CERT_DIR + filename
@@ -189,9 +194,43 @@ func (cert *Certificate) Load(serialNumber, password string) error {
 	return errors.New("certificate/key file does not exist")
 }
 
-func LoadAll() []Certificate {
-	certs := []Certificate{}
-	return certs
+func LoadAll(db *database.DBConn, certs *[]Certificate) error {
+
+	paths := []string{
+		ROOT_CERT_DIR,
+		INTER_CERT_DIR,
+		EE_CERT_DIR,
+	}
+
+	entities := []userOrService.UserOrService{}
+	err := userOrService.GetAllUserOrServices(&entities, db)
+	if err != nil {
+		return err
+	}
+	certFiles := []string{}
+	for _, root := range paths {
+		filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if !info.IsDir() {
+				filename := strings.ReplaceAll(path, root, "")
+				userdn := strings.ReplaceAll(filename, FILE_EXTENSION, "")
+				certFiles = append(certFiles, userdn)
+			}
+			return nil
+		})
+	}
+	for _, userdn := range certFiles {
+		for _, e := range entities {
+			if strings.Contains(userdn, e.Username) {
+				privateKey, c, err := keystore.ReadPFX(userdn, e.Password)
+				if err != nil {
+					return err
+				}
+				cert := Certificate{Cert: c, PrivateKey: privateKey, Type: GetType(c)}
+				*certs = append(*certs, cert)
+			}
+		}
+	}
+	return nil
 }
 
 func ArchiveCert(db *database.DBConn, serialNumber string) error {
@@ -215,6 +254,16 @@ func IsArchived(db *database.DBConn, serialNumber string) bool {
 
 func GetArchived(db *database.DBConn, certificates *[]ArchivedCert) error {
 	return db.DB.Find(certificates).Error
+}
+
+func GetType(c *x509.Certificate) CertType {
+	if !c.IsCA {
+		return EndEntity
+	} else if c.SerialNumber.String() != c.Issuer.CommonName {
+		return Intermediary
+	} else {
+		return Root
+	}
 }
 
 func findCertFile(serialNumber string) (string, error) {
