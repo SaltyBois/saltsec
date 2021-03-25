@@ -24,10 +24,11 @@ type CertDTO struct {
 	Organization string   `json:"organization"`
 	CommonName   string   `json:"commonName"`
 	IPAddress    string   `json:"ipAddress"`
+	IssuerSerial string   `json:"issuerSerial"`
+	Password     string   `json:"password"`
 	IsCA         bool     `json:"isCA"`
 	KeyUsages    []string `json:"keyUsages"`
 	ExtKeyUsages []string `json:"extKeyUsages"`
-	IssuerSerial string   `json:"issuerSerial"`
 }
 
 type ParamsDTO struct {
@@ -77,7 +78,7 @@ func AddCACert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 		caTemplate := dto.parseCertDTO()
 		setKeyUsages(caTemplate, dto.KeyUsages)
 		setExtKeyUsages(caTemplate, dto.ExtKeyUsages)
-		cert, err := GenCAIntermediateCert(caTemplate, dto.IssuerSerial)
+		cert, err := GenCAIntermediateCert(caTemplate, dto.IssuerSerial, dto.Password)
 		if err != nil {
 			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
 			return
@@ -98,7 +99,7 @@ func AddEECert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 		eeTemplate := dto.parseCertDTO()
 		setKeyUsages(eeTemplate, dto.KeyUsages)
 		setExtKeyUsages(eeTemplate, dto.ExtKeyUsages)
-		cert, err := GenEndEntityCert(eeTemplate, dto.IssuerSerial)
+		cert, err := GenEndEntityCert(eeTemplate, dto.IssuerSerial, dto.Password)
 		if err != nil {
 			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
 			return
@@ -151,7 +152,7 @@ func DownloadCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) 
 		params := mux.Vars(r)
 		serialNumber := params["sn"]
 		filename, err := findCertFile(serialNumber)
-		if err != nil{
+		if err != nil {
 			middleware.JSONResponse(w, "Bad Request Certificate does not exist", http.StatusBadRequest)
 			return
 		}
@@ -167,7 +168,9 @@ func GetCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 		cert := Certificate{}
 		params := mux.Vars(r)
 		serialNumber := params["sn"]
-		cert.Load(serialNumber)
+		// NOTE(Jovan): Not good
+		password := params["password"]
+		cert.Load(serialNumber, password)
 		json.NewEncoder(w).Encode(cert)
 	}
 }
