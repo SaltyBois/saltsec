@@ -55,7 +55,7 @@
           <label>Certificate type:</label>
           <v-radio-group>
             <v-radio color="black" @click="ChooseCertificateType(0)" label="Self-issued(root) Certificate"/>
-            <v-radio color="black" @click="ChooseCertificateType(1)" label="Intermediate Certificate Authority" />
+            <v-radio color="black" @click="ChooseCertificateType(1)" label="Intermediate Certificate" />
             <v-radio color="black" @click="ChooseCertificateType(2)" label="End-entity Certificate" />
           </v-radio-group>
           <div v-if="CertificateType !== 0 && CertificateType !== null">
@@ -120,6 +120,10 @@ export default {
         this.password2='';
         return;
       }
+      if (this.CertificateType !== 0 && this.selectedCertificate === null) {
+        alert('You must select Certificate Authority')
+        return;
+      }
       this.$http.post('http://localhost:8081/api/', this.user)
           .then(resp => {
             console.log(resp.data);
@@ -132,7 +136,6 @@ export default {
     },
     ChooseCertificateType(number) {
         this.CertificateType = number;
-        console.log("Cerificate Type: " + this.CertificateType);
     },
     ChooseUserOrService(number) {
       this.isUser = number === 0;
