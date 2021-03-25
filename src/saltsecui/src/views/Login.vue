@@ -2,20 +2,41 @@
 <div id="login-page" class="align-center">
   <v-card id="card">
     <v-card-title class="justify-center" >Login</v-card-title>
-    <v-card-text class="label">Username:</v-card-text>
-    <v-text-field type="username" class="textfield"/>
+    <v-card-text class="label">Email:</v-card-text>
+    <v-text-field type="username" class="textfield" v-model="email"/>
     <v-card-text class="label">Password:</v-card-text>
-    <v-text-field type="password" class="textfield"/>
-    <v-btn class="accent mb-3">Login</v-btn>
+    <v-text-field type="password" class="textfield" v-model="password"/>
+    <v-btn class="accent mb-3" @click="login">Login</v-btn>
   </v-card>
 </div>
 </template>
 
 <script>
 export default {
-name: "Login"
+  name: "Login",
+  data: () => ({
+    email: '',
+    password: ''
+  }),
+  methods: {
+    login() {
+      console.log(this.email + ' --- ' + this.password)
+      if (this.email === 'admin@email.com') {
+        if (this.password === 'admin1') {
+          this.$router.push('/admin')
+        }
+        else {
+          alert('Incorrect login attempt. Try Again.')
+        }
+      }
+      else {
+        alert('Incorrect login attempt. Try Again.')
+      }
+    }
+  }
 }
 </script>
+
 
 <style scoped>
 

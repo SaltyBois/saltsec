@@ -19,7 +19,7 @@ import (
 )
 
 type CertDTO struct {
-	Type         CertType `json:"type"`
+	Type         CertType `json:"type,string"`
 	Country      string   `json:"country"`
 	Organization string   `json:"organization"`
 	CommonName   string   `json:"commonName"`
@@ -29,6 +29,7 @@ type CertDTO struct {
 	IsCA         bool     `json:"isCA"`
 	KeyUsages    []string `json:"keyUsages"`
 	ExtKeyUsages []string `json:"extKeyUsages"`
+	EmailAddress string   `json:"emailAddress"`
 }
 
 type ParamsDTO struct {

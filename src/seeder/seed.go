@@ -5,6 +5,7 @@ import (
 	"saltsec/admin"
 	"saltsec/cert"
 	"saltsec/database"
+	"saltsec/userOrService"
 )
 
 type Seed struct {
@@ -15,6 +16,7 @@ type Seed struct {
 func MigrateData(db *database.DBConn) {
 	db.DB.AutoMigrate(&admin.Admin{})
 	db.DB.AutoMigrate(&cert.ArchivedCert{})
+	db.DB.AutoMigrate(&userOrService.UserOrService{})
 }
 
 func SeedData(db *database.DBConn) {
@@ -35,16 +37,23 @@ func allSeeds() []Seed {
 			},
 		},
 		Seed{
-			Name: "CreateADmin2",
-			Run: func(db *database.DBConn) error {
-				a := admin.Admin{ID: 2, Username: "admin2", Email: "admin2@email.com", Password: "admin2"}
-				return admin.AddAdmin(&a, db)
-			},
-		},
-		Seed{
 			Name: "Archive1",
 			Run: func(db *database.DBConn) error {
 				return cert.ArchiveCert(db, "1")
+			},
+		},
+		Seed{
+			Name: "User1",
+			Run: func(db *database.DBConn) error {
+				uos := userOrService.UserOrService{ID: 1, Username: "user1", Password: "user1"}
+				return userOrService.AddUserOrServiceToDB(&uos, db)
+			},
+		},
+		Seed{
+			Name: "Service2",
+			Run: func(db *database.DBConn) error {
+				uos := userOrService.UserOrService{ID: 2, Username: "service2", Password: "service2"}
+				return userOrService.AddUserOrServiceToDB(&uos, db)
 			},
 		},
 	}
