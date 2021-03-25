@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"errors"
 	"io/ioutil"
 	"log"
 	"os"
@@ -11,24 +12,24 @@ import (
 	"software.sslmate.com/src/go-pkcs12"
 )
 
-
-func ReadPFX(filename string, password string) (*rsa.PrivateKey ,*x509.Certificate) {
+func ReadPFX(filename string, password string) (*rsa.PrivateKey, *x509.Certificate, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Printf("Faild to load PFX file")
+		return nil, nil, err
 	}
 	privateKey, cert, err := pkcs12.Decode(data, password)
 	if err != nil {
 		log.Printf("Faild decoding PFX data")
+		return nil, nil, err
 	}
 
 	PKey, ok := privateKey.(*rsa.PrivateKey)
 	if !ok {
-		return nil, nil
+		return nil, nil, errors.New("could not convert to rsa.PrivateKey")
 	}
-	return PKey, cert
+	return PKey, cert, nil
 }
-
 
 func WritePFX(cert *x509.Certificate, PrivateKey *rsa.PrivateKey, password string, filepath string) error {
 	filename := filepath + cert.SerialNumber.String() + ".pfx"
@@ -47,4 +48,3 @@ func WritePFX(cert *x509.Certificate, PrivateKey *rsa.PrivateKey, password strin
 	}
 	return nil
 }
-

@@ -19,4 +19,7 @@ node_modules
 
 # Certs
 *.pem
+*.pfx
+
+# IDE
 *.idea
