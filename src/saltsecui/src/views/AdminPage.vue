@@ -24,7 +24,7 @@
          <v-data-table v-bind:items="certificates" v-bind:headers="headers">
            <template v-slot:item="row">
              <tr>
-               <td>{{row.item.Cert.SerialNumber}}</td>
+               <td>Very very big number</td>
                <td>{{row.item.Type}}</td>
                <td>{{row.item.Cert.IsCA}}</td>
                <td>{{new Date(row.item.Cert.NotBefore).toLocaleString('sr')}}</td>

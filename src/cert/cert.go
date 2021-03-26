@@ -74,6 +74,7 @@ func GenCARootCert(rootTemplate *x509.Certificate) (*Certificate, error) {
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
 	}
+	rootCert.Issuer.SerialNumber = rootCert.SerialNumber.String()
 	cert := Certificate{Cert: rootCert, PrivateKey: privateKey, Type: Root}
 	return &cert, nil
 }
@@ -158,7 +159,7 @@ func FindCertKey(serialNumber string) (*rsa.PrivateKey, error) {
 
 func (cert *Certificate) Save(username, password string) error {
 	// TODO(jovan): DN as filename
-	filename := username + cert.Cert.Subject.CommonName
+	filename := cert.Cert.Subject.CommonName + username
 	//cert.Cert.SerialNumber.String() + ".pem"
 	switch cert.Type {
 	case Root:
@@ -208,20 +209,22 @@ func LoadAll(db *database.DBConn, certs *[]Certificate) error {
 		return err
 	}
 	certFiles := []string{}
+	userdns := []string{}
 	for _, root := range paths {
 		filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if !info.IsDir() {
-				filename := strings.ReplaceAll(path, root, "")
-				userdn := strings.ReplaceAll(filename, FILE_EXTENSION, "")
-				certFiles = append(certFiles, userdn)
+				certFiles = append(certFiles, path)
+				userdns = append(userdns, getUserDn(path))
 			}
 			return nil
 		})
 	}
-	for _, userdn := range certFiles {
+	for _, path := range certFiles {
 		for _, e := range entities {
-			if strings.Contains(userdn, e.Username) {
-				privateKey, c, err := keystore.ReadPFX(userdn, e.Password)
+			if strings.Contains(getUserDn(path), e.Username) {
+
+				privateKey, c, err := keystore.ReadPFX(path, e.Password)
+
 				if err != nil {
 					return err
 				}
@@ -231,6 +234,24 @@ func LoadAll(db *database.DBConn, certs *[]Certificate) error {
 		}
 	}
 	return nil
+}
+
+func getUserDn(path string) string {
+
+	paths := []string{
+		ROOT_CERT_DIR,
+		INTER_CERT_DIR,
+		EE_CERT_DIR,
+	}
+
+	for _, root := range paths {
+		if strings.Contains(path, root) {
+			filename := strings.ReplaceAll(path, root, "")
+			userdn := strings.ReplaceAll(filename, FILE_EXTENSION, "")
+			return userdn
+		}
+	}
+	return ""
 }
 
 func ArchiveCert(db *database.DBConn, serialNumber string) error {
@@ -257,6 +278,8 @@ func GetArchived(db *database.DBConn, certificates *[]ArchivedCert) error {
 }
 
 func GetType(c *x509.Certificate) CertType {
+	log.Println(c.Issuer.SerialNumber)
+	log.Println(c.SerialNumber.String())
 	if !c.IsCA {
 		return EndEntity
 	} else if c.SerialNumber.String() != c.Issuer.SerialNumber {

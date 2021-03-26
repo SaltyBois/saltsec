@@ -42,19 +42,19 @@ func allSeeds() []Seed {
 				return cert.ArchiveCert(db, "1")
 			},
 		},
-		Seed{
-			Name: "User1",
-			Run: func(db *database.DBConn) error {
-				uos := userOrService.UserOrService{ID: 1, Username: "user1", Password: "user1"}
-				return userOrService.AddUserOrServiceToDB(&uos, db)
-			},
-		},
-		Seed{
-			Name: "Service2",
-			Run: func(db *database.DBConn) error {
-				uos := userOrService.UserOrService{ID: 2, Username: "service2", Password: "service2"}
-				return userOrService.AddUserOrServiceToDB(&uos, db)
-			},
-		},
+		//Seed{
+		//	Name: "User1",
+		//	Run: func(db *database.DBConn) error {
+		//		uos := userOrService.UserOrService{ID: 1, Username: "user1", Password: "user1"}
+		//		return userOrService.AddUserOrServiceToDB(&uos, db)
+		//	},
+		//},
+		//Seed{
+		//	Name: "Service2",
+		//	Run: func(db *database.DBConn) error {
+		//		uos := userOrService.UserOrService{ID: 2, Username: "service2", Password: "service2"}
+		//		return userOrService.AddUserOrServiceToDB(&uos, db)
+		//	},
+		//},
 	}
 }

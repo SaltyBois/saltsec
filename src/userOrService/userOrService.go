@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"saltsec/database"
 	"saltsec/middleware"
@@ -12,13 +11,11 @@ import (
 
 // TODO: MILE
 type UserOrService struct {
-	ID       uint64 `json:"id"`
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
 type UserOrServiceDTO struct {
-	ID               uint64 `json:"id"`
 	Username         string `json:"username"`
 	Password         string `json:"password"`
 	CertType         string `json:"certType"`
@@ -72,7 +69,7 @@ func AddUosAndCert(db *database.DBConn) func(http.ResponseWriter, *http.Request)
 			middleware.JSONResponse(w, "Bad Lemara Request: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		uos := UserOrService{ID: rand.Uint64(), Username: dto.Username, Password: dto.Password}
+		uos := UserOrService{Username: dto.Username, Password: dto.Password}
 
 		_ = AddUserOrServiceToDB(&uos, db)
 	}
@@ -88,6 +85,5 @@ func (dto *UserOrServiceDTO) loadCertDTO(r *http.Request) error {
 }
 
 func (a UserOrService) ToString() string {
-	return fmt.Sprintf("Admin {ID: %d, Username: %s, Password: %s}",
-		a.ID, a.Username, a.Password)
+	return fmt.Sprintf("Admin {Username: %s, Password: %s}", a.Username, a.Password)
 }

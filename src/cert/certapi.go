@@ -236,7 +236,7 @@ func (dto *CertDTO) parseCertDTO() *x509.Certificate {
 		NotBefore: time.Now().Add(-10 * time.Second),
 		NotAfter:  time.Now().AddDate(int(dto.Type), 0, 0),
 		// NOTE(Jovan): Used for MaxPathLen
-		BasicConstraintsValid: false,
+		BasicConstraintsValid: dto.IsCA,
 		IsCA:                  dto.IsCA,
 		// NOTE(Jovan): -1 = unset -> No limit for how many certs can be
 		// "under" current CA
