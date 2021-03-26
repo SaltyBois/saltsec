@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 	"log"
 	"net/http"
 	"os"
@@ -11,6 +9,9 @@ import (
 	"saltsec/globals"
 	"saltsec/router"
 	"saltsec/seeder"
+
+	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 )
 
 func main() {

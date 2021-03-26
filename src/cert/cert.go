@@ -79,16 +79,10 @@ func GenCARootCert(rootTemplate *x509.Certificate) (*Certificate, error) {
 	return &cert, nil
 }
 
-func GenCAIntermediateCert(template *x509.Certificate, issuerSerialNumber, password string) (*Certificate, error) {
-	issuerCert, err := FindCert(issuerSerialNumber, password)
-	if err != nil {
-		log.Printf("Failed to find issuer cert, returned error: %s\n", err)
-		return nil, err
-	}
-
-	issuerPrivateKey, err := FindCertKey(issuerSerialNumber)
-	if err != nil {
-		log.Printf("Failed to find issuer PK, returned error: %s\n", err)
+func GenCAIntermediateCert(template *x509.Certificate, userDn UserDnDTO, password string) (*Certificate, error) {
+	issuerCert := Certificate{}
+	if err := issuerCert.Load(userDn); err != nil {
+		log.Printf("Failed to load issuer cert, returned error: %s\n", err)
 		return nil, err
 	}
 
@@ -97,7 +91,7 @@ func GenCAIntermediateCert(template *x509.Certificate, issuerSerialNumber, passw
 		log.Printf("Failed to generate key, returned error: %s\n", err)
 		return nil, err
 	}
-	caCert, _, err := genCert(template, issuerCert.Cert, &privateKey.PublicKey, issuerPrivateKey)
+	caCert, _, err := genCert(template, issuerCert.Cert, &privateKey.PublicKey, issuerCert.PrivateKey)
 	if err != nil {
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
@@ -106,12 +100,11 @@ func GenCAIntermediateCert(template *x509.Certificate, issuerSerialNumber, passw
 	return &cert, nil
 }
 
-func GenEndEntityCert(template *x509.Certificate, issuerSerialNumber, password string) (*Certificate, error) {
-	
+func GenEndEntityCert(template *x509.Certificate, userDn UserDnDTO, password string) (*Certificate, error) {
 
-	issuerPrivateKey, err := FindCertKey(issuerSerialNumber)
-	if err != nil {
-		log.Printf("Failed to get issuer PK, returned error: %s\n", err)
+	issuerCert := Certificate{}
+	if err := issuerCert.Load(userDn); err != nil {
+		log.Printf("Failed to load issuer cert, returned error: %s\n", err)
 		return nil, err
 	}
 
@@ -120,7 +113,7 @@ func GenEndEntityCert(template *x509.Certificate, issuerSerialNumber, password s
 		log.Printf("Failed to generate key, returned error: %s\n", err)
 		return nil, err
 	}
-	eeCert, _, err := genCert(template, issuerCert.Cert, &privateKey.PublicKey, issuerPrivateKey)
+	eeCert, _, err := genCert(template, issuerCert.Cert, &privateKey.PublicKey, issuerCert.PrivateKey)
 	if err != nil {
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
@@ -180,16 +173,19 @@ func (cert *Certificate) Save(username, password string) error {
 }
 
 func (cert *Certificate) Load(userDn UserDnDTO) error {
-	filename := ROOT_CERT_DIR + userDn.CommonName + userDn.Username + FILE_EXTENSION
-	if err := cert.loadCertAndKey(filename, userDn.Password); err == nil {
-		return nil
-	}
-	filename = INTER_CERT_DIR + userDn.CommonName + userDn.Username + FILE_EXTENSION
-	if err := cert.loadCertAndKey(filename, userDn.Password); err == nil {
-		return nil
-	}
-	filename = EE_CERT_DIR + userDn.CommonName + userDn.Username + FILE_EXTENSION
-	if err := cert.loadCertAndKey(filename, userDn.Password); err == nil {
+	// filename := ROOT_CERT_DIR + userDn.CommonName + userDn.Username + FILE_EXTENSION
+	// if err := cert.loadCertAndKey(filename, userDn.Password); err == nil {
+	// 	return nil
+	// }
+	// filename = INTER_CERT_DIR + userDn.CommonName + userDn.Username + FILE_EXTENSION
+	// if err := cert.loadCertAndKey(filename, userDn.Password); err == nil {
+	// 	return nil
+	// }
+	// filename = EE_CERT_DIR + userDn.CommonName + userDn.Username + FILE_EXTENSION
+	// if err := cert.loadCertAndKey(filename, userDn.Password); err == nil {
+	// 	return nil
+	// }
+	if err := cert.loadCertAndKey(findFileName(userDn.CommonName, userDn.Username), userDn.Password); err != nil {
 		return nil
 	}
 	return errors.New("certificate/key file does not exist")
@@ -238,6 +234,27 @@ func LoadAll(db *database.DBConn, certs *[]Certificate) error {
 	return nil
 }
 
+func findFileName(commonName, username string) string {
+	paths := []string{
+		ROOT_CERT_DIR,
+		INTER_CERT_DIR,
+		EE_CERT_DIR,
+	}
+	retval := ""
+	for _, root := range paths {
+		filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if !info.IsDir() {
+				if strings.Contains(path, commonName+username) {
+					retval = path
+					return nil
+				}
+			}
+			return nil
+		})
+	}
+	return retval
+}
+
 func getUserDn(path string) string {
 
 	paths := []string{
@@ -258,8 +275,8 @@ func getUserDn(path string) string {
 
 func ArchiveCert(db *database.DBConn, userDn UserDnDTO) error {
 	cert := Certificate{}
-	cert.Load()
-	archivedCert := ArchivedCert{SerialNumber: serialNumber, ArchiveDate: time.Now()}
+	cert.Load(userDn)
+	archivedCert := ArchivedCert{SerialNumber: cert.Cert.SerialNumber.String(), ArchiveDate: time.Now()}
 	return db.DB.Create(&archivedCert).Error
 }
 

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"saltsec/database"
 	"saltsec/middleware"
+	"saltsec/userOrService"
 	"strconv"
 	"time"
 
@@ -18,16 +19,16 @@ import (
 )
 
 type CertDTO struct {
-	Type         CertType `json:"type"`
-	Country      string   `json:"country"`
-	Organization string   `json:"organization"`
-	CommonName   string   `json:"commonName"`
-	IssuerSerial string   `json:"issuerSerial"`
-	Password     string   `json:"password"`
-	IsCA         bool     `json:"isCA"`
-	KeyUsages    []string `json:"keyUsages"`
-	ExtKeyUsages []string `json:"extKeyUsages"`
-	EmailAddress string   `json:"emailAddress"`
+	Type         CertType  `json:"type"`
+	Issuer       UserDnDTO `json:"issuer"`
+	Country      string    `json:"country"`
+	Organization string    `json:"organization"`
+	CommonName   string    `json:"commonName"`
+	Password     string    `json:"password"`
+	IsCA         bool      `json:"isCA"`
+	KeyUsages    []string  `json:"keyUsages"`
+	ExtKeyUsages []string  `json:"extKeyUsages"`
+	EmailAddress string    `json:"emailAddress"`
 }
 
 type ParamsDTO struct {
@@ -36,8 +37,8 @@ type ParamsDTO struct {
 }
 
 type UserDnDTO struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
 	CommonName string `json:"commonName"`
 }
 
@@ -64,7 +65,7 @@ func AddCARootCert(db *database.DBConn) func(http.ResponseWriter, *http.Request)
 			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
 			return
 		}
-		cert.Type= GetType(cert.Cert)
+		cert.Type = GetType(cert.Cert)
 		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
 		json.NewEncoder(w).Encode(cert.Cert.SerialNumber.String())
 		cert.Save(dto.EmailAddress, dto.Password)
@@ -86,7 +87,13 @@ func AddCACert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 		caTemplate := dto.parseCertDTO()
 		setKeyUsages(caTemplate, dto.KeyUsages)
 		setExtKeyUsages(caTemplate, dto.ExtKeyUsages)
-		cert, err := GenCAIntermediateCert(caTemplate, dto.IssuerSerial, dto.Password)
+		entity := userOrService.UserOrService{}
+		err = userOrService.GetUosByUsername(dto.Issuer.Username, &entity, db)
+		if err != nil {
+				middleware.JSONResponse(w, "Internal Server Error failed to get user", http.StatusInternalServerError)
+				return
+		}
+		cert, err := GenCAIntermediateCert(caTemplate, dto.Issuer, dto.Password)
 		if err != nil {
 			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
 			return
@@ -107,7 +114,7 @@ func AddEECert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 		eeTemplate := dto.parseCertDTO()
 		setKeyUsages(eeTemplate, dto.KeyUsages)
 		setExtKeyUsages(eeTemplate, dto.ExtKeyUsages)
-		cert, err := GenEndEntityCert(eeTemplate, dto.IssuerSerial, dto.Password)
+		cert, err := GenEndEntityCert(eeTemplate, dto.Issuer, dto.Password)
 		if err != nil {
 			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
 			return
@@ -158,12 +165,7 @@ func GetCertParams() func(http.ResponseWriter, *http.Request) {
 func DownloadCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
-		serialNumber := params["sn"]
-		filename, err := findCertFile(serialNumber)
-		if err != nil {
-			middleware.JSONResponse(w, "Bad Request Certificate does not exist", http.StatusBadRequest)
-			return
-		}
+		filename := findFileName(params["cn"], params["un"])
 
 		w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(filename))
 		w.Header().Set("Content-Type", "application/octet-stream")
@@ -175,10 +177,8 @@ func GetCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cert := Certificate{}
 		params := mux.Vars(r)
-		serialNumber := params["sn"]
-		// NOTE(Jovan): Not good
-		password := params["password"]
-		cert.Load(serialNumber, password)
+		dto := UserDnDTO{Username: params["us"], Password: params["ps"], CommonName: params["cn"]}
+		cert.Load(dto)
 		json.NewEncoder(w).Encode(cert)
 	}
 }
@@ -208,6 +208,11 @@ func AddToArchive(db *database.DBConn) func(http.ResponseWriter, *http.Request) 
 	return func(w http.ResponseWriter, r *http.Request) {
 		var dto UserDnDTO
 		err := dto.loadUserDnDTO(r)
+		if err != nil {
+			middleware.JSONResponse(w, "Internal Server Error "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		if err := ArchiveCert(db, dto); err != nil {
 			middleware.JSONResponse(w, "Bad Request "+err.Error(), http.StatusNotFound)
 			return
@@ -247,7 +252,7 @@ func (dto *CertDTO) parseCertDTO() *x509.Certificate {
 		IsCA:                  dto.IsCA,
 		// NOTE(Jovan): -1 = unset -> No limit for how many certs can be
 		// "under" current CA
-		MaxPathLen:  -1,
+		MaxPathLen: -1,
 		//IPAddresses: []net.IP{net.ParseIP(dto.IPAddress)},
 	}
 

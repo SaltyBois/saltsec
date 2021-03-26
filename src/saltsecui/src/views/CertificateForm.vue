@@ -94,6 +94,11 @@ export default {
     isCA: false,
     issuerSerial: '',
     commonName: '',
+    issuer: {
+      username: "",
+      password: "",
+      commonName: "",
+    },
     headers: [
       { text: 'Certificate Type', value: 'CertificateType', align: 'center',},
       { text: 'Common Name', value: 'EmailName', align: 'center', },
@@ -107,10 +112,11 @@ export default {
       return {'username': this.username, 'password': this.password, 'parentCommonName': this.parentCommonName}
     },
     certDTO() {
-      return {'type': this.CertificateType,
+      return {
+              'type': this.CertificateType,
+              'issuer': this.Issuer,
               'isCA': this.isCA,
               'commonName': this.commonName,
-              'issuerSerial': this.issuerSerial,
               'emailAddress': this.username,
               'password': this.password}
     }
@@ -136,6 +142,13 @@ export default {
         return;
       }
 
+      if (this.CertificateType !== 'Root'){
+        this.Issuer = {
+          username: this.selectedCertificate.Cert.EmailAddresses[0],
+          password: "",
+          commonName: "",
+        }
+      }
       this.$http.post('http://localhost:8081/api/uos/add', this.user)
           // eslint-disable-next-line no-unused-vars
           .then(resp => {

@@ -36,12 +36,6 @@ func allSeeds() []Seed {
 				return admin.AddAdmin(&a, db)
 			},
 		},
-		Seed{
-			Name: "Archive1",
-			Run: func(db *database.DBConn) error {
-				return cert.ArchiveCert(db, "1")
-			},
-		},
 		//Seed{
 		//	Name: "User1",
 		//	Run: func(db *database.DBConn) error {

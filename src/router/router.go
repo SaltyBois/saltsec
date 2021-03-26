@@ -22,7 +22,7 @@ func (r *Router) initRoutes(db *database.DBConn) {
 	r.R.HandleFunc("/api/cert/end-entity", cert.AddEECert(db)).Methods("POST")
 	r.R.HandleFunc("/api/cert/params", cert.GetCertParams()).Methods("GET")
 	r.R.HandleFunc("/api/cert", cert.GetAllCerts(db)).Methods("GET")
-	r.R.HandleFunc("/api/cert/{sn}", cert.GetCert(db)).Methods("GET")
+	r.R.HandleFunc("/api/cert/", cert.GetCert(db)).Queries("us", "{us}", "ps", "{ps}", "cn", "{cn}").Methods("GET")
 	r.R.HandleFunc("/api/cert/archive/check/{sn}", cert.CheckIfArchived(db)).Methods("GET")
 	r.R.HandleFunc("/api/cert/archive/add", cert.AddToArchive(db)).Methods("POST")
 	r.R.HandleFunc("/api/cert/download/{sn}", cert.DownloadCert(db)).Methods("GET")
