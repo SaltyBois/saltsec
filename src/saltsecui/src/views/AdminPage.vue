@@ -2,7 +2,7 @@
  <div id="Admin-page">
    <v-layout justify-center align-baseline>
      <span class="bg"/>
-     <v-card width="70%" elevation="10" justify-center class="text-center mt-3">
+     <v-card width="75%" elevation="10" justify-center class="text-center mt-3">
        <v-card-title style="margin: 10px" >
          <v-layout justify-center style="margin: 5px">
            <h1>Admin Profile</h1>
@@ -30,14 +30,14 @@
                <td>{{new Date(row.item.Cert.NotBefore).toLocaleString('sr')}}</td>
                <td>{{new Date(row.item.Cert.NotAfter).toLocaleString('sr')}}</td>
                <td>{{row.item.Cert.Issuer.SerialNumber}}</td>
-               <td>
-                 <v-checkbox readonly color="accent" v-model="row.item.isValid"/>
+               <td v-if="!isArchived(row.item.Cert.SerialNumber)">
+                 <v-btn dark class="accent primary--text" @click="archiveCertificate(row.item)">Archive</v-btn>
+               </td>
+               <td v-else>
+                 <v-btn disabled class="accent primary--text">Archived</v-btn>
                </td>
                <td>
-                 <v-btn dark class="accent primary--text" @click="archiveCertificate(row.item.Cert.SerialNumber)">Archive</v-btn>
-               </td>
-               <td>
-                 <v-btn dark class="info primary--text" @click="downloadCert(row.item.Cert.SerialNumber)">Download</v-btn>
+                 <v-btn dark class="info primary--text" @click="downloadCert">Download</v-btn>
                </td>
              </tr>
            </template>
@@ -52,10 +52,12 @@
 export default {
   name: "AdminPage",
   data: () => ({
+    archived: [],
     certificates: [],
     admin: null,
     name: '',
     email: '',
+    commonName: '',
     headers: [
       { text: 'Serial Number', value: 'SerialNumber'},
       { text: 'Certificate Type', value: 'CertificateType' },
@@ -70,6 +72,12 @@ export default {
   mounted() {
     this.getAdmin()
     this.getCertificates()
+    this.getArchived()
+  },
+  computed: {
+    userDn() {
+      return {'username': this.username, 'password': this.password, 'commonName': this.commonName}
+    }
   },
   methods: {
     getAdmin() {
@@ -88,6 +96,9 @@ export default {
       this.axios.get("http://localhost:8081/api/cert")
           .then(resp => {
             this.certificates = resp.data
+            this.certificates.forEach(element => {
+              this.checkIfArchived(element.Cert.serialNumber);
+            });
             console.log("Certificates:")
             console.log(this.certificates)
           })
@@ -96,11 +107,38 @@ export default {
           })
     },
     archiveCertificate(cert) {
-      this.axios.get("http:/localhost:8081/api/cert/download/" + cert)
+      this.commonName = cert.Cert.Subject.CommonName
+      let dto = {
+        username: cert.Cert.EmailAddresses[0],
+        password: "",
+        commonName: cert.Cert.Subject.CommonName
+      }
+      this.axios.post("http://localhost:8081/api/cert/archive/add", dto)
       this.$router.go()
     },
+    getArchived() {
+      this.axios.get("http://localhost:8081/api/cert/archive")
+        .then(response => {
+          console.log(response);
+          this.archived = response.data;
+        })
+        .catch(response => {
+          console.log(response)
+        });
+    },
     downloadCert(serialNumber) {
-      this.$router.push("http:/localhost:8081/api/cert/download/" + serialNumber)
+      this.$router.push("download/" + serialNumber)
+      // window.location.href = ;"http:/localhost:8081/api/cert/download/" + serialNumber
+    },
+    isArchived(serialNumber) {
+      let retval = false;
+      this.archived.forEach(a => {
+        if (a.serialNumber == serialNumber){
+          retval = true;
+          return retval
+        }
+      })
+      return retval;
     }
   }
 }

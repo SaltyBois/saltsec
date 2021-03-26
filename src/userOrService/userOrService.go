@@ -5,24 +5,22 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"log"
-	"math/rand"
 	"net/http"
 	"saltsec/database"
 	"saltsec/middleware"
 )
- // TODO: MILE
+
+// TODO: MILE
 type UserOrService struct {
-	ID       		 uint32		`json:"id"`
-	Username 		 string		`json:"username"`
-	Password 		 string		`json:"password"`
+	Username string `gorm:"primaryKey" json:"username"`
+	Password string `json:"password"`
 }
 
 type UserOrServiceDTO struct {
-	ID       		 uint32		`json:"id"`
-	Username 		 string		`json:"username"`
-	Password 		 string		`json:"password"`
-	CertType 		 string `json:"certType"`
-	ParentCommonName string	`json:"parentCommonName"`
+	Username         string `json:"username"`
+	Password         string `json:"password"`
+	CertType         string `json:"certType"`
+	ParentCommonName string `json:"parentCommonName"`
 }
 
 func AddUserOrServiceToDB(uos *UserOrService, db *database.DBConn) error {
@@ -44,8 +42,8 @@ func RemoveUserOrService(id uint64, db *database.DBConn) error {
 	return db.DB.Delete(id).Error
 }
 
-func GetUserOrService(id uint64, uos *UserOrService, db *database.DBConn) error {
-	return db.DB.First(uos).Error
+func GetUserOrService(username string, uos *UserOrService, db *database.DBConn) error {
+	return db.DB.First(uos, username).Error
 }
 
 func GetAllUserOrServices(uos *[]UserOrService, db *database.DBConn) error {
@@ -90,7 +88,7 @@ func AddUosAndCert(db *database.DBConn) func(http.ResponseWriter, *http.Request)
 			middleware.JSONResponse(w, "Bad Lemara Request: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		uos := UserOrService{ID: rand.Uint32(), Username: dto.Username, Password: dto.Password}
+		uos := UserOrService{Username: dto.Username, Password: dto.Password}
 
 		_ = AddUserOrServiceToDB(&uos, db)
 	}
@@ -106,7 +104,5 @@ func (dto *UserOrServiceDTO) loadCertDTO(r *http.Request) error {
 }
 
 func (a UserOrService) ToString() string {
-	return fmt.Sprintf("Admin {ID: %d, Username: %s, Password: %s}",
-		a.ID, a.Username, a.Password)
+	return fmt.Sprintf("Admin {Username: %s, Password: %s}", a.Username, a.Password)
 }
-
