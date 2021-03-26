@@ -21,6 +21,7 @@ func ReadPFX(filename string, password string) (*rsa.PrivateKey, *x509.Certifica
 		log.Println("Faild to load PFX file: ", err)
 		return nil, nil, err
 	}
+	log.Printf("password: %s\n", password)
 	privateKey, cert, err := pkcs12.Decode(data, password)
 	if err != nil {
 		log.Printf("Faild decoding PFX data")

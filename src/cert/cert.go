@@ -81,6 +81,7 @@ func GenCARootCert(rootTemplate *x509.Certificate) (*Certificate, error) {
 
 func GenCAIntermediateCert(template *x509.Certificate, userDn UserDnDTO, password string) (*Certificate, error) {
 	issuerCert := Certificate{}
+	log.Print("userDN ", userDn)
 	if err := issuerCert.Load(userDn); err != nil {
 		log.Printf("Failed to load issuer cert, returned error: %s\n", err)
 		return nil, err
@@ -103,6 +104,7 @@ func GenCAIntermediateCert(template *x509.Certificate, userDn UserDnDTO, passwor
 func GenEndEntityCert(template *x509.Certificate, userDn UserDnDTO, password string) (*Certificate, error) {
 
 	issuerCert := Certificate{}
+	log.Println("userdn ", userDn)
 	if err := issuerCert.Load(userDn); err != nil {
 		log.Printf("Failed to load issuer cert, returned error: %s\n", err)
 		return nil, err
@@ -169,6 +171,7 @@ func (cert *Certificate) Save(username, password string) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("Written file: %s\n", filename)
 	return nil
 }
 
@@ -185,10 +188,92 @@ func (cert *Certificate) Load(userDn UserDnDTO) error {
 	// if err := cert.loadCertAndKey(filename, userDn.Password); err == nil {
 	// 	return nil
 	// }
-	if err := cert.loadCertAndKey(findFileName(userDn.CommonName, userDn.Username), userDn.Password); err != nil {
-		return nil
+	filename := findFileName(userDn.CommonName, userDn.Username)
+	if err := cert.loadCertAndKey(filename, userDn.Password); err != nil {
+		return err
 	}
-	return errors.New("certificate/key file does not exist")
+	return nil
+}
+
+func getIssuer(issuerCN string, db *database.DBConn) (*Certificate, *UserDnDTO, error){
+	issuerDNTokens := strings.Split(findFileName(issuerCN, ""), string(os.PathSeparator))
+	issuerDN := issuerDNTokens[len(issuerDNTokens)-1]
+	issuerUsername := strings.ReplaceAll(issuerDN, issuerCN, "")
+	issuerUsername = strings.ReplaceAll(issuerUsername, FILE_EXTENSION, "")
+	issuer := userOrService.UserOrService{}
+	if err := userOrService.GetUosByUsername(issuerUsername, &issuer, db); err != nil {
+		log.Printf("Failed to get user, returned error: %s\n", err)
+		return nil, nil, err
+	}
+	
+	userDn := UserDnDTO{
+		Username: issuer.Username,
+		Password: issuer.Password,
+		CommonName: issuerCN,
+	}
+	issuerCert := Certificate{}
+	if err := issuerCert.Load(userDn); err != nil {
+		log.Print("userDn", userDn)
+		log.Printf("Failed getting issuer cert, returned error: %s\n", err)
+		return nil, nil, err
+	}
+	return &issuerCert, &userDn, nil
+}
+
+func LoadAllDto(db *database.DBConn, dtos *[]CertDTO) error {
+	paths := []string{
+		ROOT_CERT_DIR,
+		INTER_CERT_DIR,
+		EE_CERT_DIR,
+	}
+
+	entities := []userOrService.UserOrService{}
+	err := userOrService.GetAllUserOrServices(&entities, db)
+	if err != nil {
+		return err
+	}
+	certFiles := []string{}
+	userdns := []string{}
+	for _, root := range paths {
+		filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if !info.IsDir() {
+				certFiles = append(certFiles, path)
+				userdns = append(userdns, getUserDn(path))
+			}
+			return nil
+		})
+	}
+	for _, path := range certFiles {
+		for _, e := range entities {
+			if strings.Contains(getUserDn(path), e.Username) {
+
+				_, c, err := keystore.ReadPFX(path, e.Password)
+
+				if err != nil {
+					return err
+				}
+				// c.Issuer.SerialNumber = c.SerialNumber.String()
+				// cert := Certificate{Cert: c, PrivateKey: privateKey, Type: GetType(c)}
+				// TODO(Jovan): Should work
+				issuerCert, userDn, err := getIssuer(c.Issuer.CommonName, db)
+				if err != nil {
+					return err
+				}
+				c.Issuer.SerialNumber = issuerCert.Cert.SerialNumber.String()
+
+				dto := CertDTO {
+					Type: GetType(c),
+					Issuer: *userDn,
+					Country: c.Subject.Country[0],
+					Organization: c.Subject.Organization[0],
+					
+				}
+				log.Printf("dto: %v\n", dto)
+				*dtos = append(*dtos, dto)
+			}
+		}
+	}
+	return nil
 }
 
 func LoadAll(db *database.DBConn, certs *[]Certificate) error {
@@ -224,7 +309,11 @@ func LoadAll(db *database.DBConn, certs *[]Certificate) error {
 				if err != nil {
 					return err
 				}
-				c.Issuer.SerialNumber = c.SerialNumber.String()
+				issuerCert, _, err := getIssuer(c.Issuer.CommonName, db)
+				if err != nil {
+					return err
+				}
+				c.Issuer.SerialNumber = issuerCert.Cert.SerialNumber.String()
 				cert := Certificate{Cert: c, PrivateKey: privateKey, Type: GetType(c)}
 
 				*certs = append(*certs, cert)

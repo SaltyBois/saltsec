@@ -93,9 +93,17 @@ func AddCACert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 				middleware.JSONResponse(w, "Internal Server Error failed to get user", http.StatusInternalServerError)
 				return
 		}
+		log.Print("entity", entity)
+		dto.Issuer.Password = entity.Password
 		cert, err := GenCAIntermediateCert(caTemplate, dto.Issuer, dto.Password)
 		if err != nil {
 			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
+			return
+		}
+		cert.Type = GetType(cert.Cert)
+		err = cert.Save(dto.EmailAddress, dto.Password)
+		if err != nil {
+			middleware.JSONResponse(w, "Internal Server Error failed to save certificate: " + err.Error(), http.StatusInternalServerError)
 			return
 		}
 		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
@@ -114,9 +122,23 @@ func AddEECert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 		eeTemplate := dto.parseCertDTO()
 		setKeyUsages(eeTemplate, dto.KeyUsages)
 		setExtKeyUsages(eeTemplate, dto.ExtKeyUsages)
+		entity := userOrService.UserOrService{}
+		err = userOrService.GetUosByUsername(dto.Issuer.Username, &entity, db)
+		if err != nil {
+				middleware.JSONResponse(w, "Internal Server Error failed to get user", http.StatusInternalServerError)
+				return
+		}
+		log.Print("entity", entity)
+		dto.Issuer.Password = entity.Password
 		cert, err := GenEndEntityCert(eeTemplate, dto.Issuer, dto.Password)
 		if err != nil {
 			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
+			return
+		}
+		cert.Type = GetType(cert.Cert)
+		err = cert.Save(dto.EmailAddress, dto.Password)
+		if err != nil {
+			middleware.JSONResponse(w, "Internal Server Error failed to save certificate: " + err.Error(), http.StatusInternalServerError)
 			return
 		}
 		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
@@ -185,7 +207,9 @@ func GetCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 
 func GetAllCerts(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// dtos := []CertDTO{}
 		certs := []Certificate{}
+		// LoadAllDto(db, &dtos)
 		LoadAll(db, &certs)
 		json.NewEncoder(w).Encode(certs)
 	}
@@ -245,6 +269,7 @@ func (dto *CertDTO) parseCertDTO() *x509.Certificate {
 			Organization: []string{dto.Organization},
 			CommonName:   dto.CommonName,
 		},
+		EmailAddresses: []string{dto.EmailAddress},
 		NotBefore: time.Now().Add(-10 * time.Second),
 		NotAfter:  time.Now().AddDate(int(dto.Type), 0, 0),
 		// NOTE(Jovan): Used for MaxPathLen

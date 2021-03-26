@@ -59,12 +59,14 @@
               <h3>, {{this.selectedCertificate.Cert.Subject.CommonName}}</h3>
             </v-layout>
             <v-data-table label="Choose Certificate Authority" :items="CACertificates" :headers="headers" >
-              <template slot="item" slot-scope="data">
-                <td><h3>{{data.item.Type}}</h3></td>
-                <td>{{data.item.Cert.Subject.CommonName}}</td>
-                <td>{{data.item.Cert.EmailAddresses[0]}}</td>
-                <td>{{new Date(data.item.Cert.NotAfter).toLocaleString('sr')}}</td>
-                <td><v-btn class="accent" @click="selectCA(data.item)">Select</v-btn></td>
+              <template v-slot:item="row">
+                <tr>
+                  <td><h3>{{row.item.Type}}</h3></td>
+                  <td>{{row.item.Cert.Subject.CommonName}}</td>
+                  <td>{{row.item.Cert.EmailAddresses[0]}}</td>
+                  <td>{{new Date(row.item.Cert.NotAfter).toLocaleString('sr')}}</td>
+                  <td><v-btn class="accent" @click="selectCA(row.item)">Select</v-btn></td>
+                </tr>
               </template>
             </v-data-table>
           </div>
@@ -94,11 +96,11 @@ export default {
     isCA: false,
     issuerSerial: '',
     commonName: '',
-    issuer: {
-      username: "",
-      password: "",
-      commonName: "",
-    },
+    // issuer: {
+    //   username: "",
+    //   password: "",
+    //   commonName: "",
+    // },
     headers: [
       { text: 'Certificate Type', value: 'CertificateType', align: 'center',},
       { text: 'Common Name', value: 'EmailName', align: 'center', },
@@ -111,15 +113,23 @@ export default {
     user() {
       return {'username': this.username, 'password': this.password, 'parentCommonName': this.parentCommonName}
     },
+    issuer() {
+      console.log("aaaa" + this.selectedCertificate)
+          return {
+            'username': this.selectedCertificate.Cert.EmailAddresses[0],
+            'password': "a",
+            'commonName': this.selectedCertificate.Cert.CommonName
+          }
+    },
     certDTO() {
       return {
               'type': this.CertificateType,
-              'issuer': this.Issuer,
+              'issuer': this.issuer,
               'isCA': this.isCA,
               'commonName': this.commonName,
               'emailAddress': this.username,
               'password': this.password}
-    }
+    },
   },
   methods: {
     register() {
@@ -142,13 +152,9 @@ export default {
         return;
       }
 
-      if (this.CertificateType !== 'Root'){
-        this.Issuer = {
-          username: this.selectedCertificate.Cert.EmailAddresses[0],
-          password: "",
-          commonName: "",
-        }
-      }
+      // if (this.CertificateType !== 'Root'){
+      //   return;
+      // }
       this.$http.post('http://localhost:8081/api/uos/add', this.user)
           // eslint-disable-next-line no-unused-vars
           .then(resp => {
@@ -181,15 +187,15 @@ export default {
             console.log(er.response.data);
           })
     },
-    ChooseCertificateType(number) {
-        this.CertificateType = number;
-        this.isCA = number !== 1;
-        if (number === 10) {
-          this.issuerSerial = null
-        }
-        else {
+    ChooseCertificateType(type) {
+        this.CertificateType = type;
+        this.isCA = type !== 'EndEntity';
+        // if (number === 'Root') {
+          // this.issuerSerial = null
+        // }
+        // else {
           this.issuerSerial = this.selectedCertificate.Cert.Issuer.SerialNumber;
-        }
+        // }
     },
     ChooseUserOrService(number) {
       this.isUser = number === 0;
