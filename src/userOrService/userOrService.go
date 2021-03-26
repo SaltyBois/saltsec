@@ -3,6 +3,7 @@ package userOrService
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"saltsec/database"
@@ -56,6 +57,24 @@ func GetAll(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 			log.Print(err)
 		}
 		_ = json.NewEncoder(w).Encode(uoss)
+	}
+}
+
+func GetUosByUsername(username string, uos *UserOrService, db *database.DBConn) error {
+	return db.DB.Where("username = ?", username).First(uos).Error
+}
+
+func GetUos(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var dto UserOrServiceDTO
+		params := mux.Vars(r)
+		username := params["username"]
+		dto.Username = username
+		uos := UserOrService{}
+		if err := GetUosByUsername(dto.Username, &uos, db); err != nil {
+			log.Print(err)
+		}
+		json.NewEncoder(w).Encode(uos)
 	}
 }
 
