@@ -20,17 +20,26 @@ export default {
   }),
   methods: {
     login() {
-      console.log(this.email + ' --- ' + this.password)
       if (this.email === 'admin@email.com') {
         if (this.password === 'admin1') {
           this.$router.push('/admin')
         }
         else {
-          alert('Incorrect login attempt. Try Again.')
+          alert('Incorrect login attempt. Try Again Admin.')
         }
       }
       else {
-        alert('Incorrect login attempt. Try Again.')
+        this.axios.get('http://localhost:8081/api/uos')
+            // eslint-disable-next-line no-unused-vars
+        .then(resp => {
+          let arr = resp.data
+          for (let i = 0; i < arr.length; ++i) {
+            if (arr[i].username === this.email && arr[i].password === this.password) {
+              this.$router.push('/user/' + this.email)
+            }
+          }
+
+        })
       }
     }
   }

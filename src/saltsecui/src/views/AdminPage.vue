@@ -34,7 +34,10 @@
                  <v-checkbox readonly color="accent" v-model="row.item.isValid"/>
                </td>
                <td>
-                 <v-btn dark class="accent primary--text" @click="disableCertificate(row.item)">Disable</v-btn>
+                 <v-btn dark class="accent primary--text" @click="archiveCertificate(row.item.Cert.SerialNumber)">Archive</v-btn>
+               </td>
+               <td>
+                 <v-btn dark class="info primary--text" @click="downloadCert(row.item.Cert.SerialNumber)">Download</v-btn>
                </td>
              </tr>
            </template>
@@ -60,8 +63,8 @@ export default {
       { text: 'Not Before', value: 'NotBefore' },
       { text: 'Not After', value: 'NotAfter' },
       { text: 'Issued By', value: 'Issuer' },
-      { text: 'Is Valid', value: 'IsValid' },
-      { text: 'Disable Certifiacate', value: 'DisableCertificate' },
+      { text: 'Disable Certificate', value: 'DisableCertificate' },
+      { text: 'Download Certificate', value: 'Download' },
     ],
   }),
   mounted() {
@@ -92,8 +95,12 @@ export default {
             console.log(err.response)
           })
     },
-    disableCertificate(cert) {
-      console.log(cert)
+    archiveCertificate(cert) {
+      this.axios.get("http:/localhost:8081/api/cert/download/" + cert)
+      this.$router.go()
+    },
+    downloadCert(serialNumber) {
+      this.$router.push("http:/localhost:8081/api/cert/download/" + serialNumber)
     }
   }
 }
