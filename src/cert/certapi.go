@@ -35,6 +35,12 @@ type ParamsDTO struct {
 	ExtKeyUsages []string `json:"extKeyUsages"`
 }
 
+type UserDnDTO struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	CommonName string `json:"commonName"`
+}
+
 func AddCARootCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -200,8 +206,9 @@ func CheckIfArchived(db *database.DBConn) func(http.ResponseWriter, *http.Reques
 
 func AddToArchive(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		params := mux.Vars(r)
-		if err := ArchiveCert(db, params["sn"]); err != nil {
+		var dto UserDnDTO
+		err := dto.loadUserDnDTO(r)
+		if err := ArchiveCert(db, dto); err != nil {
 			middleware.JSONResponse(w, "Bad Request "+err.Error(), http.StatusNotFound)
 			return
 		}
@@ -248,6 +255,15 @@ func (dto *CertDTO) parseCertDTO() *x509.Certificate {
 }
 
 func (dto *CertDTO) loadCertDTO(r *http.Request) error {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(dto); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (dto *UserDnDTO) loadUserDnDTO(r *http.Request) error {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(dto); err != nil {

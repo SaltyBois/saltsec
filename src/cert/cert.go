@@ -54,7 +54,7 @@ func Init() {
 
 func GetRandomSerial() *big.Int {
 	z := new(big.Int)
-	b, err := genRandomBytes(256)
+	b, err := genRandomBytes(8)
 	if err != nil {
 		log.Fatalf("Failed to generate random serial, returned error: %s\n", err)
 	}
@@ -107,10 +107,7 @@ func GenCAIntermediateCert(template *x509.Certificate, issuerSerialNumber, passw
 }
 
 func GenEndEntityCert(template *x509.Certificate, issuerSerialNumber, password string) (*Certificate, error) {
-	issuerCert, err := FindCert(issuerSerialNumber, password)
-	if err != nil {
-		return nil, err
-	}
+	
 
 	issuerPrivateKey, err := FindCertKey(issuerSerialNumber)
 	if err != nil {
@@ -138,17 +135,20 @@ func ValidateCertChain(db *database.DBConn, cert *x509.Certificate) error {
 		return validateCert(db, cert)
 	}
 	// TODO(Jovan): get password
-	password := "test123"
-	issuerCert, err := FindCert(cert.Issuer.SerialNumber, password)
+	//password := "test123"
+	uos := userOrService.UserOrService{}
+	userOrService.GetUserOrService(cert.EmailAddresses[0], &uos, db)
+	userDn := UserDnDTO{Username: cert.EmailAddresses[0], Password: uos.Password}
+	issuerCert, err := FindCert(userDn)
 	if err != nil {
 		return err
 	}
 	return ValidateCertChain(db, issuerCert.Cert)
 }
 
-func FindCert(serialNumber, password string) (*Certificate, error) {
+func FindCert(userDn UserDnDTO) (*Certificate, error) {
 	cert := &Certificate{}
-	err := cert.Load(serialNumber, password)
+	err := cert.Load(userDn)
 	return cert, err
 }
 
@@ -179,17 +179,17 @@ func (cert *Certificate) Save(username, password string) error {
 	return nil
 }
 
-func (cert *Certificate) Load(serialNumber, password string) error {
-	filename := ROOT_CERT_DIR + serialNumber + FILE_EXTENSION
-	if err := cert.loadCertAndKey(filename, password); err == nil {
+func (cert *Certificate) Load(userDn UserDnDTO) error {
+	filename := ROOT_CERT_DIR + userDn.CommonName + userDn.Username + FILE_EXTENSION
+	if err := cert.loadCertAndKey(filename, userDn.Password); err == nil {
 		return nil
 	}
-	filename = INTER_CERT_DIR + serialNumber + FILE_EXTENSION
-	if err := cert.loadCertAndKey(filename, password); err == nil {
+	filename = INTER_CERT_DIR + userDn.CommonName + userDn.Username + FILE_EXTENSION
+	if err := cert.loadCertAndKey(filename, userDn.Password); err == nil {
 		return nil
 	}
-	filename = EE_CERT_DIR + serialNumber + FILE_EXTENSION
-	if err := cert.loadCertAndKey(filename, password); err == nil {
+	filename = EE_CERT_DIR + userDn.CommonName + userDn.Username + FILE_EXTENSION
+	if err := cert.loadCertAndKey(filename, userDn.Password); err == nil {
 		return nil
 	}
 	return errors.New("certificate/key file does not exist")
@@ -228,7 +228,9 @@ func LoadAll(db *database.DBConn, certs *[]Certificate) error {
 				if err != nil {
 					return err
 				}
+				c.Issuer.SerialNumber = c.SerialNumber.String()
 				cert := Certificate{Cert: c, PrivateKey: privateKey, Type: GetType(c)}
+
 				*certs = append(*certs, cert)
 			}
 		}
@@ -254,7 +256,9 @@ func getUserDn(path string) string {
 	return ""
 }
 
-func ArchiveCert(db *database.DBConn, serialNumber string) error {
+func ArchiveCert(db *database.DBConn, userDn UserDnDTO) error {
+	cert := Certificate{}
+	cert.Load()
 	archivedCert := ArchivedCert{SerialNumber: serialNumber, ArchiveDate: time.Now()}
 	return db.DB.Create(&archivedCert).Error
 }
@@ -315,13 +319,7 @@ func (cert *Certificate) loadCertAndKey(filename, password string) error {
 
 	cert.Cert = c
 	cert.PrivateKey = privateKey
-	if !cert.Cert.IsCA {
-		cert.Type = EndEntity
-	} else if cert.Cert.SerialNumber.String() == cert.Cert.Issuer.SerialNumber {
-		cert.Type = Root
-	} else {
-		cert.Type = Intermediary
-	}
+	cert.Type = GetType(cert.Cert)
 
 	return nil
 }

@@ -24,7 +24,7 @@ func (r *Router) initRoutes(db *database.DBConn) {
 	r.R.HandleFunc("/api/cert", cert.GetAllCerts(db)).Methods("GET")
 	r.R.HandleFunc("/api/cert/{sn}", cert.GetCert(db)).Methods("GET")
 	r.R.HandleFunc("/api/cert/archive/check/{sn}", cert.CheckIfArchived(db)).Methods("GET")
-	r.R.HandleFunc("/api/cert/archive/add/{sn}", cert.AddToArchive(db)).Methods("GET")
+	r.R.HandleFunc("/api/cert/archive/add", cert.AddToArchive(db)).Methods("POST")
 	r.R.HandleFunc("/api/cert/download/{sn}", cert.DownloadCert(db)).Methods("GET")
 	r.R.HandleFunc("/api/uos", userOrService.GetAll(db)).Methods("GET")
 	r.R.HandleFunc("/api/uos/{username}", userOrService.GetUos(db)).Methods("GET")

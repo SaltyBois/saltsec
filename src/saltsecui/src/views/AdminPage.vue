@@ -2,7 +2,7 @@
  <div id="Admin-page">
    <v-layout justify-center align-baseline>
      <span class="bg"/>
-     <v-card width="70%" elevation="10" justify-center class="text-center mt-3">
+     <v-card width="75%" elevation="10" justify-center class="text-center mt-3">
        <v-card-title style="margin: 10px" >
          <v-layout justify-center style="margin: 5px">
            <h1>Admin Profile</h1>
@@ -24,17 +24,14 @@
          <v-data-table v-bind:items="certificates" v-bind:headers="headers">
            <template v-slot:item="row">
              <tr>
-               <td>Very very big number</td>
+               <td>{{row.item.Cert.SerialNumber}}</td>
                <td>{{row.item.Type}}</td>
                <td>{{row.item.Cert.IsCA}}</td>
                <td>{{new Date(row.item.Cert.NotBefore).toLocaleString('sr')}}</td>
                <td>{{new Date(row.item.Cert.NotAfter).toLocaleString('sr')}}</td>
                <td>{{row.item.Cert.Issuer.SerialNumber}}</td>
                <td>
-                 <v-checkbox readonly color="accent" v-model="row.item.isValid"/>
-               </td>
-               <td>
-                 <v-btn dark class="accent primary--text" @click="archiveCertificate(row.item.Cert.SerialNumber)">Archive</v-btn>
+                 <v-btn dark class="accent primary--text" @click="archiveCertificate(row.item)">Archive</v-btn>
                </td>
                <td>
                  <v-btn dark class="info primary--text" @click="downloadCert(row.item.Cert.SerialNumber)">Download</v-btn>
@@ -56,6 +53,7 @@ export default {
     admin: null,
     name: '',
     email: '',
+    commonName: '',
     headers: [
       { text: 'Serial Number', value: 'SerialNumber'},
       { text: 'Certificate Type', value: 'CertificateType' },
@@ -70,6 +68,11 @@ export default {
   mounted() {
     this.getAdmin()
     this.getCertificates()
+  },
+  computed: {
+    userDn() {
+      return {'username': this.username, 'password': this.password, 'commonName': this.commonName}
+    }
   },
   methods: {
     getAdmin() {
@@ -96,7 +99,8 @@ export default {
           })
     },
     archiveCertificate(cert) {
-      this.axios.get("http:/localhost:8081/api/cert/download/" + cert)
+      this.commonName = cert.Cert.Subject.CommonName
+      this.axios.post("http:/localhost:8081/api/cert/archive/add", this.userDn)
       this.$router.go()
     },
     downloadCert(serialNumber) {

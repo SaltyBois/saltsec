@@ -12,7 +12,7 @@ import (
 
 // TODO: MILE
 type UserOrService struct {
-	Username string `json:"username"`
+	Username string `gorm:"primaryKey" json:"username"`
 	Password string `json:"password"`
 }
 
@@ -42,8 +42,8 @@ func RemoveUserOrService(id uint64, db *database.DBConn) error {
 	return db.DB.Delete(id).Error
 }
 
-func GetUserOrService(id uint64, uos *UserOrService, db *database.DBConn) error {
-	return db.DB.First(uos).Error
+func GetUserOrService(username string, uos *UserOrService, db *database.DBConn) error {
+	return db.DB.First(uos, username).Error
 }
 
 func GetAllUserOrServices(uos *[]UserOrService, db *database.DBConn) error {
