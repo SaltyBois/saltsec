@@ -66,9 +66,13 @@ func AddCARootCert(db *database.DBConn) func(http.ResponseWriter, *http.Request)
 			return
 		}
 		cert.Type = GetType(cert.Cert)
+		err = cert.Save(dto.EmailAddress, dto.Password)
+		if err != nil {
+			middleware.JSONResponse(w, "Internal Server Error failed to save certificate: " + err.Error(), http.StatusInternalServerError)
+			return
+		}
 		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
 		json.NewEncoder(w).Encode(cert.Cert.SerialNumber.String())
-		cert.Save(dto.EmailAddress, dto.Password)
 	}
 }
 
@@ -215,8 +219,17 @@ func GetAllCerts(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
+func GetArchived(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		archived := []ArchivedCert{}
+		db.DB.First(&archived);
+		json.NewEncoder(w).Encode(archived)
+	}
+}
+
 func CheckIfArchived(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Print("Checking archives...")
 		params := mux.Vars(r)
 		serialNumber := params["sn"]
 		log.Printf("Looking for serial: %s", serialNumber)
@@ -236,9 +249,20 @@ func AddToArchive(db *database.DBConn) func(http.ResponseWriter, *http.Request) 
 			middleware.JSONResponse(w, "Internal Server Error "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-
+		entity := userOrService.UserOrService{}
+		err = userOrService.GetUosByUsername(dto.Username, &entity, db)
+		if err != nil {
+			middleware.JSONResponse(w, "Internal Server Error " + err.Error(), http.StatusInternalServerError)
+			return
+		}
+		dto.Password = entity.Password
 		if err := ArchiveCert(db, dto); err != nil {
 			middleware.JSONResponse(w, "Bad Request "+err.Error(), http.StatusNotFound)
+			return
+		}
+		err = ArchiveCert(db, dto)
+		if err != nil {
+			middleware.JSONResponse(w, "Bad Request Failed archiving: " + err.Error(), http.StatusBadRequest)
 			return
 		}
 		middleware.JSONResponse(w, "OK Certificate archived", http.StatusOK)

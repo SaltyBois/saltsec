@@ -115,6 +115,13 @@ export default {
     },
     issuer() {
       console.log("aaaa" + this.selectedCertificate)
+      if (!this.selectedCertificate) {
+        return {
+          'username': this.username,
+          'password': "",
+          'commonName': this.commonName,
+        }
+      }
           return {
             'username': this.selectedCertificate.Cert.EmailAddresses[0],
             'password': "a",
@@ -158,6 +165,7 @@ export default {
       this.$http.post('http://localhost:8081/api/uos/add', this.user)
           // eslint-disable-next-line no-unused-vars
           .then(resp => {
+            console.log(this.CertificateType)
             if (this.CertificateType === 'Root') {
               this.$http.post('http://localhost:8081/api/cert/root', this.certDTO)
                   // eslint-disable-next-line no-unused-vars
@@ -183,8 +191,7 @@ export default {
 
           })
           .catch(er => {
-            console.log('Error while registering in');
-            console.log(er.response.data);
+            console.log(er);
           })
     },
     ChooseCertificateType(type) {
@@ -203,6 +210,7 @@ export default {
     getCACertificates() {
       this.axios.get('http://localhost:8081/api/cert')
       .then(resp => {
+        console.log(resp.data);
         for(let i = 0; i < resp.data.length; ++i) {
           if (resp.data[i].Cert.IsCA) this.CACertificates.push(resp.data[i])
         }

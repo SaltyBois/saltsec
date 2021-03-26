@@ -54,7 +54,7 @@ func Init() {
 
 func GetRandomSerial() *big.Int {
 	z := new(big.Int)
-	b, err := genRandomBytes(8)
+	b, err := genRandomBytes(4)
 	if err != nil {
 		log.Fatalf("Failed to generate random serial, returned error: %s\n", err)
 	}
@@ -370,22 +370,24 @@ func ArchiveCert(db *database.DBConn, userDn UserDnDTO) error {
 }
 
 func IsArchived(db *database.DBConn, serialNumber string) bool {
-	certs := []ArchivedCert{}
-	if err := GetArchived(db, &certs); err != nil {
-		log.Printf("Failed getting archived certificates, returned error: %s\n", err)
-		return false
-	}
-	for _, c := range certs {
-		if serialNumber == c.SerialNumber {
-			return true
-		}
-	}
-	return false
+	// certs := []ArchivedCert{}
+	// if err := GetArchived(db, &certs); err != nil {
+	// 	log.Printf("Failed getting archived certificates, returned error: %s\n", err)
+	// 	return false
+	// }
+	// for _, c := range certs {
+	// 	log.Printf("Checking serial number: %s\n", c.SerialNumber)
+	// 	if serialNumber == c.SerialNumber {
+	// 		return true
+	// 	}
+	// }
+	archive := ArchivedCert{}
+	return db.DB.First(&archive, serialNumber).Error == nil
 }
 
-func GetArchived(db *database.DBConn, certificates *[]ArchivedCert) error {
-	return db.DB.Find(certificates).Error
-}
+// func GetArchived(db *database.DBConn, certificates *[]ArchivedCert) error {
+// 	return db.DB.Find(certificates).Error
+// }
 
 func GetType(c *x509.Certificate) CertType {
 	log.Println(c.Issuer.SerialNumber)

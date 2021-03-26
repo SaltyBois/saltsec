@@ -32,10 +32,11 @@ export default {
         this.axios.get('http://localhost:8081/api/uos')
             // eslint-disable-next-line no-unused-vars
         .then(resp => {
+          this.$router.push('/admin/')
           let arr = resp.data
           for (let i = 0; i < arr.length; ++i) {
             if (arr[i].username === this.email && arr[i].password === this.password) {
-              this.$router.push('/user/' + this.email)
+              // this.$router.push('/admin/' + this.email)
             }
           }
 

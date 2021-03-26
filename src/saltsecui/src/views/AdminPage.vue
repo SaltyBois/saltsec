@@ -30,8 +30,11 @@
                <td>{{new Date(row.item.Cert.NotBefore).toLocaleString('sr')}}</td>
                <td>{{new Date(row.item.Cert.NotAfter).toLocaleString('sr')}}</td>
                <td>{{row.item.Cert.Issuer.SerialNumber}}</td>
-               <td>
+               <td v-if="!isArchived(row.item.Cert.SerialNumber)">
                  <v-btn dark class="accent primary--text" @click="archiveCertificate(row.item)">Archive</v-btn>
+               </td>
+               <td v-else>
+                 <v-btn disabled class="accent primary--text">Archived</v-btn>
                </td>
                <td>
                  <v-btn dark class="info primary--text" @click="downloadCert(row.item.Cert.SerialNumber)">Download</v-btn>
@@ -49,6 +52,7 @@
 export default {
   name: "AdminPage",
   data: () => ({
+    archived: [],
     certificates: [],
     admin: null,
     name: '',
@@ -68,6 +72,7 @@ export default {
   mounted() {
     this.getAdmin()
     this.getCertificates()
+    this.getArchived()
   },
   computed: {
     userDn() {
@@ -91,6 +96,9 @@ export default {
       this.axios.get("http://localhost:8081/api/cert")
           .then(resp => {
             this.certificates = resp.data
+            this.certificates.forEach(element => {
+              this.checkIfArchived(element.Cert.serialNumber);
+            });
             console.log("Certificates:")
             console.log(this.certificates)
           })
@@ -100,11 +108,36 @@ export default {
     },
     archiveCertificate(cert) {
       this.commonName = cert.Cert.Subject.CommonName
-      this.axios.post("http:/localhost:8081/api/cert/archive/add", this.userDn)
+      let dto = {
+        username: cert.Cert.EmailAddresses[0],
+        password: "",
+        commonName: cert.Cert.Subject.CommonName
+      }
+      this.axios.post("http://localhost:8081/api/cert/archive/add", dto)
       this.$router.go()
+    },
+    getArchived() {
+      this.axios.get("http://localhost:8081/api/cert/archive")
+        .then(response => {
+          console.log(response);
+          this.archived = response.data;
+        })
+        .catch(response => {
+          console.log(response)
+        });
     },
     downloadCert(serialNumber) {
       this.$router.push("http:/localhost:8081/api/cert/download/" + serialNumber)
+    },
+    isArchived(serialNumber) {
+      let retval = false;
+      this.archived.forEach(a => {
+        if (a.serialNumber == serialNumber){
+          retval = true;
+          return retval
+        }
+      })
+      return retval;
     }
   }
 }
