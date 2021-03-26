@@ -31,13 +31,13 @@ func ReadPFX(filename string, password string) (*rsa.PrivateKey, *x509.Certifica
 	return PKey, cert, nil
 }
 
-func WritePFX(cert *x509.Certificate, PrivateKey *rsa.PrivateKey, password string, filepath string) error {
-	filename := filepath + cert.SerialNumber.String() + ".pfx"
+func WritePFX(cert *x509.Certificate, PrivateKey *rsa.PrivateKey, password string, filename string) error {
 	pfxBytes, err := pkcs12.Encode(rand.Reader, PrivateKey, cert, []*x509.Certificate{}, password)
 	if err != nil {
 		log.Printf("Faild to encode PFX file\n")
 		return err
 	}
+	log.Println(filename)
 	if err := os.WriteFile(
 		filename,
 		pfxBytes,

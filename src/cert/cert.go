@@ -74,7 +74,7 @@ func GenCARootCert(rootTemplate *x509.Certificate) (*Certificate, error) {
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
 	}
-	cert := Certificate{Cert: rootCert, PrivateKey: privateKey}
+	cert := Certificate{Cert: rootCert, PrivateKey: privateKey, Type: Root}
 	return &cert, nil
 }
 
@@ -170,7 +170,7 @@ func (cert *Certificate) Save(username, password string) error {
 	default:
 		return errors.New("invalid certificate type")
 	}
-
+	filename = filename + ".pfx"
 	err := keystore.WritePFX(cert.Cert, cert.PrivateKey, password, filename)
 	if err != nil {
 		return err
@@ -259,7 +259,7 @@ func GetArchived(db *database.DBConn, certificates *[]ArchivedCert) error {
 func GetType(c *x509.Certificate) CertType {
 	if !c.IsCA {
 		return EndEntity
-	} else if c.SerialNumber.String() != c.Issuer.CommonName {
+	} else if c.SerialNumber.String() != c.Issuer.SerialNumber {
 		return Intermediary
 	} else {
 		return Root

@@ -51,12 +51,14 @@ func AddCARootCert(db *database.DBConn) func(http.ResponseWriter, *http.Request)
 		rootTemplate := dto.parseCertDTO()
 		setKeyUsages(rootTemplate, dto.KeyUsages)
 		setExtKeyUsages(rootTemplate, dto.ExtKeyUsages)
+		rootTemplate.Issuer.SerialNumber = rootTemplate.SerialNumber.String()
 
 		cert, err := GenCARootCert(rootTemplate)
 		if err != nil {
 			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
 			return
 		}
+		cert.Type= GetType(cert.Cert)
 		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
 		json.NewEncoder(w).Encode(cert.Cert.SerialNumber.String())
 		cert.Save(dto.EmailAddress, dto.Password)
@@ -241,6 +243,7 @@ func (dto *CertDTO) parseCertDTO() *x509.Certificate {
 		MaxPathLen:  -1,
 		//IPAddresses: []net.IP{net.ParseIP(dto.IPAddress)},
 	}
+
 	return &rootTemplate
 }
 
