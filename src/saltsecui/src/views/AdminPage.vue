@@ -37,7 +37,7 @@
                  <v-btn disabled class="accent primary--text">Archived</v-btn>
                </td>
                <td>
-                 <v-btn dark class="info primary--text" @click="downloadCert(row.item.Cert.SerialNumber)">Download</v-btn>
+                 <v-btn dark class="info primary--text" @click="downloadCert">Download</v-btn>
                </td>
              </tr>
            </template>
@@ -127,7 +127,8 @@ export default {
         });
     },
     downloadCert(serialNumber) {
-      this.$router.push("http:/localhost:8081/api/cert/download/" + serialNumber)
+      this.$router.push("download/" + serialNumber)
+      // window.location.href = ;"http:/localhost:8081/api/cert/download/" + serialNumber
     },
     isArchived(serialNumber) {
       let retval = false;

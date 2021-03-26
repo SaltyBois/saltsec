@@ -34,6 +34,10 @@ const routes = [
     name: 'UserPage',
     component: UserPage
   },
+  {
+    path: '/download/:id',
+    beforeEnter() {location.href = 'http://localhost:8081/api/cert/download/:id'}
+  }
 //  {
 //    path: '/about',
 //    name: 'About',

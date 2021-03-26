@@ -222,7 +222,7 @@ func GetAllCerts(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 func GetArchived(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		archived := []ArchivedCert{}
-		db.DB.First(&archived);
+		db.DB.Find(&archived);
 		json.NewEncoder(w).Encode(archived)
 	}
 }
