@@ -5,7 +5,7 @@ import (
 	"saltsec/admin"
 	"saltsec/cert"
 	"saltsec/database"
-	"saltsec/userOrService"
+	"saltsec/user"
 )
 
 type Seed struct {
@@ -16,7 +16,7 @@ type Seed struct {
 func MigrateData(db *database.DBConn) {
 	db.DB.AutoMigrate(&admin.Admin{})
 	db.DB.AutoMigrate(&cert.ArchivedCert{})
-	db.DB.AutoMigrate(&userOrService.UserOrService{})
+	db.DB.AutoMigrate(&user.User{})
 }
 
 func SeedData(db *database.DBConn) {

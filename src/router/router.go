@@ -5,7 +5,7 @@ import (
 	"saltsec/cert"
 	"saltsec/database"
 	"saltsec/middleware"
-	"saltsec/userOrService"
+	"saltsec/user"
 
 	"github.com/gorilla/mux"
 )
@@ -27,9 +27,9 @@ func (r *Router) initRoutes(db *database.DBConn) {
 	r.R.HandleFunc("/api/cert/archive/add", cert.AddToArchive(db)).Methods("POST")
 	r.R.HandleFunc("/api/cert/archive", cert.GetArchived(db)).Methods("GET")
 	r.R.HandleFunc("/api/cert/download/{sn}", cert.DownloadCert(db)).Methods("GET")
-	r.R.HandleFunc("/api/uos", userOrService.GetAll(db)).Methods("GET")
-	r.R.HandleFunc("/api/uos/{username}", userOrService.GetUos(db)).Methods("GET")
-	r.R.HandleFunc("/api/uos/add", userOrService.AddUosAndCert(db)).Methods("POST")
+	r.R.HandleFunc("/api/uos", user.GetAllUsers(db)).Methods("GET")
+	r.R.HandleFunc("/api/uos/{username}", user.GetUser(db)).Methods("GET")
+	r.R.HandleFunc("/api/uos/add", user.AddUserAndCert(db)).Methods("POST")
 
 }
 
