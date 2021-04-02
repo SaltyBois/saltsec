@@ -1,10 +1,8 @@
 package cert
 
 import (
-	"bytes"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/gob"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -59,8 +57,6 @@ func AddCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		// setKeyUsages(c, dto.KeyUsage)
-		// setExtKeyUsages(c, dto.ExtKeyUsages)
 		// cert.Verify()
 		if err := cert.Save(); err != nil {
 			middleware.JSONResponse(w, "Internal Server Error: " + err.Error(), http.StatusInternalServerError)
@@ -175,23 +171,6 @@ func AddToArchive(db *database.DBConn) func(http.ResponseWriter, *http.Request) 
 		}
 		middleware.JSONResponse(w, "OK Certificate archived", http.StatusOK)
 	}
-}
-
-func setExtKeyUsages(cert *x509.Certificate, usages []string) {
-	var extKeyUsage x509util.ExtKeyUsage
-	extKeyUsageBytes := &bytes.Buffer{}
-	gob.NewEncoder(extKeyUsageBytes).Encode(usages)
-	extKeyUsage.UnmarshalJSON(extKeyUsageBytes.Bytes())
-	extKeyUsage.Set(cert)
-}
-
-func setKeyUsages(cert *x509.Certificate, usage string) {
-	var keyUsage x509util.KeyUsage
-	keyUsageBytes := &bytes.Buffer{}
-	gob.NewEncoder(keyUsageBytes).Encode(usage)
-	keyUsage.UnmarshalJSON([]byte(usage))
-	log.Println("Key usage", keyUsage)
-	keyUsage.Set(cert)
 }
 
 func (dto *RequestCertDTO) parse() *x509.Certificate {

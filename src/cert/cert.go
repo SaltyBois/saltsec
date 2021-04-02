@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"saltsec/database"
 	"saltsec/keystore"
+	"strings"
 	"time"
 )
 
@@ -151,7 +152,9 @@ func LoadAll(db *database.DBConn, certs *[]Certificate) error {
 	for _, root := range paths {
 		filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if !info.IsDir() {
-				_, c, cChain, err := keystore.ReadPFX(path)
+				filename := strings.ReplaceAll(path, keystore.ROOT_DIR, "")
+				filename = strings.ReplaceAll(filename, keystore.FILE_EXT, "")
+				_, c, cChain, err := keystore.ReadPFX(filename)
 				if err != nil {
 					return err
 				}
