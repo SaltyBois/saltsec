@@ -10,140 +10,60 @@ import (
 	"net/http"
 	"saltsec/database"
 	"saltsec/middleware"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
 	"go.step.sm/crypto/x509util"
 )
 
-// type CertDTO struct {
-// 	// Type         CertType  `json:"type"`
-// 	// Issuer       UserDnDTO `json:"issuer"`
-// 	// Country      string    `json:"country"`
-// 	// Organization string    `json:"organization"`
-// 	// CommonName   string    `json:"commonName"`
-// 	// Password     string    `json:"password"`
-// 	// IsCA         bool      `json:"isCA"`
-// 	// KeyUsages    []string  `json:"keyUsages"`
-// 	// ExtKeyUsages []string  `json:"extKeyUsages"`
-// 	// EmailAddress string    `json:"emailAddress"`
-// 	// Cert *x509.Certificate `json:"cert"`
-// 	// CertChain []*x509.Certificate `json:"cert"`
-// }
+type RequestCertDTO struct {
+	Subject      pkix.Name `json:"subject"`
+	Issuer       pkix.Name `json:"issuer"`
+	KeyUsage     x509util.KeyUsage  `json:"keyUsage"`
+	ExtKeyUsages *x509util.ExtKeyUsage  `json:"extKeyUsages"`
+	IssuerSerial string    `json:"issuerSerial"`
+	SubjectEmail string    `json:"subjectEmail"`
+	IssuerEmail  string    `json:"issuerEmail"`
+	Type 		 CertType  `json:"type"`
+}
 
 type ParamsDTO struct {
 	KeyUsages    []string `json:"keyUsages"`
 	ExtKeyUsages []string `json:"extKeyUsages"`
 }
 
-type UserDnDTO struct {
-	Username   string `json:"username"`
-	Password   string `json:"password"`
-	CommonName string `json:"commonName"`
-}
-
-func AddCARootCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+func AddCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		var dto CertDTO
-		err := dto.loadCertDTO(r)
+		var dto RequestCertDTO
+		err := dto.decode(r)
 		if err != nil {
-			middleware.JSONResponse(w, "Bad Request"+err.Error(), http.StatusBadRequest)
+			middleware.JSONResponse(w, "Bad Request: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		if dto.Type != Root {
-			middleware.JSONResponse(w, "Bad Request cert type not of type 'Root'", http.StatusBadRequest)
-			return
-		}
-		rootTemplate := dto.parseCertDTO()
-		setKeyUsages(rootTemplate, dto.KeyUsages)
-		setExtKeyUsages(rootTemplate, dto.ExtKeyUsages)
-		rootTemplate.Issuer.SerialNumber = rootTemplate.SerialNumber.String()
 
-		cert, err := GenCARootCert(rootTemplate)
-		if err != nil {
-			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
-			return
+		c := dto.parse()
+		var cert *Certificate
+		if dto.Type == Root {
+			cert, err = GenCARootCert(c)
+		} else {
+			lookupDTO := LookupDTO {
+				Username: dto.IssuerEmail,
+				SerialNumber: dto.Issuer.SerialNumber,
+			}
+			cert, err = GenCert(c, lookupDTO)
 		}
-		cert.Type = GetType(cert.Cert)
-		err = cert.Save(dto.EmailAddress, dto.Password)
-		if err != nil {
-			middleware.JSONResponse(w, "Internal Server Error failed to save certificate: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
-		json.NewEncoder(w).Encode(cert.Cert.SerialNumber.String())
-	}
-}
 
-func AddCACert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var dto CertDTO
-		err := dto.loadCertDTO(r)
 		if err != nil {
-			middleware.JSONResponse(w, "Bad Request"+err.Error(), http.StatusBadRequest)
+			middleware.JSONResponse(w, "Bad Request: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-		if dto.Type != Intermediary {
-			middleware.JSONResponse(w, "Bad Request cert type not of type 'Intermediary'", http.StatusBadRequest)
-			return
-		}
-		caTemplate := dto.parseCertDTO()
-		setKeyUsages(caTemplate, dto.KeyUsages)
-		setExtKeyUsages(caTemplate, dto.ExtKeyUsages)
-		entity := userOrService.UserOrService{}
-		err = userOrService.GetUosByUsername(dto.Issuer.Username, &entity, db)
-		if err != nil {
-			middleware.JSONResponse(w, "Internal Server Error failed to get user", http.StatusInternalServerError)
-			return
-		}
-		log.Print("entity", entity)
-		dto.Issuer.Password = entity.Password
-		cert, err := GenCAIntermediateCert(caTemplate, dto.Issuer, dto.Password)
-		if err != nil {
-			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
-			return
-		}
-		cert.Type = GetType(cert.Cert)
-		err = cert.Save(dto.EmailAddress, dto.Password)
-		if err != nil {
-			middleware.JSONResponse(w, "Internal Server Error failed to save certificate: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
-		json.NewEncoder(w).Encode(cert.Cert.SerialNumber.String())
-	}
-}
 
-func AddEECert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var dto CertDTO
-		err := dto.loadCertDTO(r)
-		if err != nil {
-			middleware.JSONResponse(w, "Bad Request cert type not of type 'EndEntity", http.StatusBadRequest)
-			return
-		}
-		eeTemplate := dto.parseCertDTO()
-		setKeyUsages(eeTemplate, dto.KeyUsages)
-		setExtKeyUsages(eeTemplate, dto.ExtKeyUsages)
-		entity := userOrService.UserOrService{}
-		err = userOrService.GetUosByUsername(dto.Issuer.Username, &entity, db)
-		if err != nil {
-			middleware.JSONResponse(w, "Internal Server Error failed to get user", http.StatusInternalServerError)
-			return
-		}
-		log.Print("entity", entity)
-		dto.Issuer.Password = entity.Password
-		cert, err := GenEndEntityCert(eeTemplate, dto.Issuer, dto.Password)
-		if err != nil {
-			middleware.JSONResponse(w, "Internal Server Error failed to generate certificate", http.StatusInternalServerError)
-			return
-		}
-		cert.Type = GetType(cert.Cert)
-		err = cert.Save(dto.EmailAddress, dto.Password)
-		if err != nil {
-			middleware.JSONResponse(w, "Internal Server Error failed to save certificate: "+err.Error(), http.StatusInternalServerError)
+		// setKeyUsages(c, dto.KeyUsage)
+		// setExtKeyUsages(c, dto.ExtKeyUsages)
+		// cert.Verify()
+		if err := cert.Save(); err != nil {
+			middleware.JSONResponse(w, "Internal Server Error: " + err.Error(), http.StatusInternalServerError)
 			return
 		}
 		log.Printf("Generated cert: %s\n", cert.Cert.SerialNumber.String())
@@ -189,22 +109,22 @@ func GetCertParams() func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func DownloadCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		params := mux.Vars(r)
-		filename := findFileName(params["cn"], params["un"])
+// func DownloadCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		params := mux.Vars(r)
+// 		filename := findFileName(params["cn"], params["un"])
 
-		w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(filename))
-		w.Header().Set("Content-Type", "application/octet-stream")
-		http.ServeFile(w, r, filename)
-	}
-}
+// 		w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(filename))
+// 		w.Header().Set("Content-Type", "application/octet-stream")
+// 		http.ServeFile(w, r, filename)
+// 	}
+// }
 
 func GetCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cert := Certificate{}
 		params := mux.Vars(r)
-		dto := UserDnDTO{Username: params["us"], Password: params["ps"], CommonName: params["cn"]}
+		dto := LookupDTO{Username: params["us"], SerialNumber: params["sn"]}
 		cert.Load(dto)
 		json.NewEncoder(w).Encode(cert)
 	}
@@ -212,9 +132,7 @@ func GetCert(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 
 func GetAllCerts(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// dtos := []CertDTO{}
 		certs := []Certificate{}
-		// LoadAllDto(db, &dtos)
 		LoadAll(db, &certs)
 		json.NewEncoder(w).Encode(certs)
 	}
@@ -244,26 +162,15 @@ func CheckIfArchived(db *database.DBConn) func(http.ResponseWriter, *http.Reques
 
 func AddToArchive(db *database.DBConn) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var dto UserDnDTO
-		err := dto.loadUserDnDTO(r)
+		var dto LookupDTO
+		err := dto.decode(r)
 		if err != nil {
 			middleware.JSONResponse(w, "Internal Server Error "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		entity := userOrService.UserOrService{}
-		err = userOrService.GetUosByUsername(dto.Username, &entity, db)
-		if err != nil {
-			middleware.JSONResponse(w, "Internal Server Error "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		dto.Password = entity.Password
+		
 		if err := ArchiveCert(db, dto); err != nil {
 			middleware.JSONResponse(w, "Bad Request "+err.Error(), http.StatusNotFound)
-			return
-		}
-		err = ArchiveCert(db, dto)
-		if err != nil {
-			middleware.JSONResponse(w, "Bad Request Failed archiving: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 		middleware.JSONResponse(w, "OK Certificate archived", http.StatusOK)
@@ -278,38 +185,43 @@ func setExtKeyUsages(cert *x509.Certificate, usages []string) {
 	extKeyUsage.Set(cert)
 }
 
-func setKeyUsages(cert *x509.Certificate, usages []string) {
+func setKeyUsages(cert *x509.Certificate, usage string) {
 	var keyUsage x509util.KeyUsage
 	keyUsageBytes := &bytes.Buffer{}
-	gob.NewEncoder(keyUsageBytes).Encode(usages)
-	keyUsage.UnmarshalJSON(keyUsageBytes.Bytes())
+	gob.NewEncoder(keyUsageBytes).Encode(usage)
+	keyUsage.UnmarshalJSON([]byte(usage))
+	log.Println("Key usage", keyUsage)
 	keyUsage.Set(cert)
 }
 
-func (dto *CertDTO) parseCertDTO() *x509.Certificate {
-	rootTemplate := x509.Certificate{
-		SerialNumber: GetRandomSerial(),
-		Subject: pkix.Name{
-			Country:      []string{dto.Country},
-			Organization: []string{dto.Organization},
-			CommonName:   dto.CommonName,
-		},
-		EmailAddresses: []string{dto.EmailAddress},
+func (dto *RequestCertDTO) parse() *x509.Certificate {
+	serialNumber := GetRandomSerial()
+	dto.Subject.SerialNumber = serialNumber.String()
+	template := x509.Certificate{
+		SerialNumber:   serialNumber,
+		Subject:        dto.Subject,
+		Issuer:         dto.Issuer,
+		EmailAddresses: []string{dto.SubjectEmail},
 		NotBefore:      time.Now().Add(-10 * time.Second),
 		NotAfter:       time.Now().AddDate(int(dto.Type), 0, 0),
-		// NOTE(Jovan): Used for MaxPathLen
-		BasicConstraintsValid: dto.IsCA,
-		IsCA:                  dto.IsCA,
-		// NOTE(Jovan): -1 = unset -> No limit for how many certs can be
-		// "under" current CA
-		MaxPathLen: -1,
-		//IPAddresses: []net.IP{net.ParseIP(dto.IPAddress)},
+	}
+	dto.KeyUsage.Set(&template)
+	dto.ExtKeyUsages.Set(&template)
+
+	if dto.Type == Root || dto.Type == Intermediary {
+		template.BasicConstraintsValid = true
+		template.IsCA = true
+		template.MaxPathLen = -1
 	}
 
-	return &rootTemplate
+	if dto.Type == Root {
+		template.Issuer = dto.Subject
+	}
+
+	return &template
 }
 
-func (dto *CertDTO) loadCertDTO(r *http.Request) error {
+func (dto *RequestCertDTO) decode(r *http.Request) error {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(dto); err != nil {
@@ -318,7 +230,7 @@ func (dto *CertDTO) loadCertDTO(r *http.Request) error {
 	return nil
 }
 
-func (dto *UserDnDTO) loadUserDnDTO(r *http.Request) error {
+func (dto *LookupDTO) decode(r *http.Request) error {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(dto); err != nil {

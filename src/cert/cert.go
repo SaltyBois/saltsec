@@ -25,10 +25,10 @@ var (
 const FILE_EXTENSION = ".pfx"
 
 type Certificate struct {
-	Cert       *x509.Certificate `json:"cert"`
+	Cert       *x509.Certificate   `json:"cert"`
 	CertChain  []*x509.Certificate `json:"certChain"`
-	PrivateKey *rsa.PrivateKey `json:"-"`
-	Type       CertType `json:"type"`
+	PrivateKey *rsa.PrivateKey     `json:"-"`
+	Type       CertType            `json:"type"`
 }
 
 type ArchivedCert struct {
@@ -37,7 +37,7 @@ type ArchivedCert struct {
 }
 
 type LookupDTO struct {
-	Username string `json:"username"`
+	Username     string `json:"username"`
 	SerialNumber string `json:"serialNumber"`
 }
 
@@ -98,12 +98,20 @@ func GenCert(template *x509.Certificate, issuerDTO LookupDTO) (*Certificate, err
 		log.Printf("Failed to generate key, returned error: %s\n", err)
 		return nil, err
 	}
-	eeCert, _, err := genCert(template, issuerCert.Cert, &privateKey.PublicKey, issuerCert.PrivateKey)
+	c, _, err := genCert(template, issuerCert.Cert, &privateKey.PublicKey, issuerCert.PrivateKey)
 	if err != nil {
 		log.Printf("Failed to generate certificate, returned error: %s\n", err)
 		return nil, err
 	}
-	cert := Certificate{Cert: eeCert, PrivateKey: privateKey}
+	certChain := issuerCert.CertChain
+	certChain = append([]*x509.Certificate{issuerCert.Cert}, certChain...)
+
+	cert := Certificate{
+		Cert: c,
+		CertChain: certChain,
+		PrivateKey: privateKey,
+		Type: GetType(c),
+	}
 	return &cert, err
 }
 
@@ -118,8 +126,8 @@ func (cert *Certificate) Verify() error {
 	return errors.New("not implemented")
 }
 
-func (cert *Certificate) Save(username string) error {
-	filename := username + cert.Cert.SerialNumber.String()
+func (cert *Certificate) Save() error {
+	filename := cert.Cert.EmailAddresses[0] + cert.Cert.SerialNumber.String()
 	err := keystore.WritePFX(cert.Cert, cert.CertChain, cert.PrivateKey, filename)
 	if err != nil {
 		return err
@@ -148,9 +156,9 @@ func LoadAll(db *database.DBConn, certs *[]Certificate) error {
 					return err
 				}
 				cert := Certificate{
-					Cert: c,
-					CertChain: cChain,
-					Type: GetType(c),
+					Cert:       c,
+					CertChain:  cChain,
+					Type:       GetType(c),
 					PrivateKey: nil,
 				}
 				*certs = append(*certs, cert)

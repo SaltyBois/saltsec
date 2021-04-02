@@ -7,6 +7,7 @@ import (
 	"saltsec/cert"
 	"saltsec/database"
 	"saltsec/globals"
+	"saltsec/keystore"
 	"saltsec/router"
 	"saltsec/seeder"
 
@@ -50,6 +51,7 @@ func main() {
 	//c.Type = cert.Root
 	//c.Save("test123")
 	cert.Init()
+	keystore.Init()
 
 	r := router.Router{}
 	r.R = mux.NewRouter()

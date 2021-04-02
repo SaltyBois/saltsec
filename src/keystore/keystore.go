@@ -14,12 +14,18 @@ import (
 )
 
 var (
-	ROOT_DIR = filepath.FromSlash("../keystore")
+	ROOT_DIR = filepath.FromSlash("../keystore/")
 	FILE_EXT = ".pfx"
 )
 
+func Init() {
+	if _, err := os.Stat(ROOT_DIR); os.IsNotExist(err) {
+		os.Mkdir(ROOT_DIR, 0755)
+	}
+}
+
 func ReadPFX(filename string) (*rsa.PrivateKey, *x509.Certificate, []*x509.Certificate, error) {
-	pfxData, err := ioutil.ReadFile(filepath.FromSlash(ROOT_DIR + filename))
+	pfxData, err := ioutil.ReadFile(filepath.FromSlash(ROOT_DIR + filename + FILE_EXT))
 	if err != nil {
 		log.Println("Faild to load PFX file: ", err)
 		return nil, nil, nil, err
@@ -45,7 +51,7 @@ func WritePFX(cert *x509.Certificate, certChain []*x509.Certificate, PrivateKey 
 		return err
 	}
 	if err := os.WriteFile(
-		ROOT_DIR + filename + FILE_EXT,
+		ROOT_DIR+filename+FILE_EXT,
 		pfxBytes,
 		os.ModePerm,
 	); err != nil {
