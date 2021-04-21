@@ -124,7 +124,34 @@ func LoadCert(dto LookupDTO) (*Certificate, error) {
 
 func (cert *Certificate) Verify() error {
 	// TODO(Jovan): Implement
-	return errors.New("not implemented")
+	roots, inter := getRootInetrPool(cert)
+
+	opts := x509.VerifyOptions{
+		Roots: roots,
+		Intermediates: inter,
+		CurrentTime: time.Now(),
+		//DNSName: "",
+	}
+
+	if _, err := cert.Cert.Verify(opts); err != nil {
+		log.Printf("faild to verify certificate: %s\n", err)
+		return err
+	}
+
+	//return errors.New("not implemented")
+}
+
+func getRootInetrPool(cert *Certificate) (*x509.CertPool, *x509.CertPool) {
+	root := x509.NewCertPool()
+	inter := x509.NewCertPool()
+	for _, c := range cert.CertChain {
+		if GetType(c) == Root {
+			root.AddCert(c)
+		} else {
+			inter.AddCert(c)
+		}
+	}
+	return root, inter
 }
 
 func (cert *Certificate) Save() error {
